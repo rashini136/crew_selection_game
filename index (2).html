@@ -1,0 +1,2255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Mars — Crew Selection Simulation</title>
+  <style>
+    :root{
+      --bg:#070b22;
+      --panel:#151d3d;
+      --panel-2:#202b55;
+      --panel-3:#2f3f73;
+      --text:#f8fbff;
+      --muted:#aeb9d7;
+      --orange:#ff9f1c;
+      --orange-2:#ffb347;
+      --red:#ff4242;
+      --green:#55d88a;
+      --blue:#66c7ff;
+      --purple:#9b7bff;
+      --line:rgba(255,255,255,.16);
+      --shadow:0 18px 45px rgba(0,0,0,.35);
+      --radius:22px;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 85% 8%, rgba(255,159,28,.22), transparent 25%),
+        radial-gradient(circle at 10% 85%, rgba(102,199,255,.12), transparent 24%),
+        linear-gradient(135deg,#06091f 0%, #0b1230 48%, #050716 100%);
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    body::before, body::after{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:-2;
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.68) 1px, transparent 1.4px),
+        radial-gradient(circle, rgba(255,255,255,.4) 1px, transparent 1.6px);
+      background-size:46px 46px, 83px 83px;
+      animation:drift 65s linear infinite;
+      opacity:.45;
+    }
+    body::after{animation-duration:95s; opacity:.2; transform:scale(1.2)}
+    @keyframes drift{to{background-position:900px 1200px, -700px 900px}}
+
+    .app{max-width:1320px;margin:0 auto;padding:24px 18px 80px}
+    .hero{
+      display:grid;
+      grid-template-columns:1.2fr .8fr;
+      gap:20px;
+      align-items:stretch;
+      margin-bottom:18px;
+    }
+    .hero-card{
+      border:1px solid var(--line);
+      border-radius:30px;
+      background:linear-gradient(135deg,rgba(30,42,83,.94),rgba(14,21,52,.9));
+      box-shadow:var(--shadow);
+      padding:26px;
+      min-height:205px;
+      position:relative;
+      overflow:hidden;
+    }
+    .hero-card::after{
+      content:"🚀";
+      position:absolute;
+      right:24px;
+      bottom:-20px;
+      font-size:116px;
+      opacity:.18;
+      filter:drop-shadow(0 10px 18px rgba(0,0,0,.3));
+      transform:rotate(-12deg);
+    }
+    .eyebrow{color:var(--orange);font-weight:900;letter-spacing:.12em;text-transform:uppercase;font-size:.82rem}
+    h1{margin:8px 0 8px;font-size:clamp(2rem,5vw,4.6rem);line-height:.95;letter-spacing:-.06em;text-transform:uppercase}
+    .subtitle{color:var(--muted);font-size:1.05rem;line-height:1.55;max-width:760px}
+    .mission-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .stat-card{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      border-radius:20px;
+      padding:16px;
+      min-height:92px;
+    }
+    .stat-label{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+    .stat-value{font-size:1.65rem;font-weight:950;margin-top:6px}
+    .top-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+
+    button, input, select{
+      font:inherit;
+    }
+    button{
+      border:0;
+      cursor:pointer;
+      color:var(--text);
+      border-radius:999px;
+      padding:11px 16px;
+      font-weight:850;
+      background:linear-gradient(135deg,var(--orange),#ff7b00);
+      box-shadow:0 10px 24px rgba(255,159,28,.22);
+      transition:transform .18s ease, filter .18s ease, background .18s ease;
+    }
+    button:hover{transform:translateY(-1px);filter:brightness(1.05)}
+    button:active{transform:translateY(1px)}
+    button.secondary{background:rgba(255,255,255,.1);box-shadow:none;border:1px solid var(--line)}
+    button.danger{background:linear-gradient(135deg,#ff5252,#d80d0d)}
+    button.good{background:linear-gradient(135deg,#44d17a,#0aa565)}
+    button.blue{background:linear-gradient(135deg,#59c2ff,#2d75ff)}
+    button:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:grayscale(.35)}
+
+    .player-name-strip{
+      border:1px solid var(--line);
+      border-radius:22px;
+      background:linear-gradient(135deg,rgba(255,159,28,.13),rgba(255,255,255,.06));
+      padding:16px 18px;
+      margin:0 0 18px;
+      box-shadow:0 12px 30px rgba(0,0,0,.18);
+      display:grid;
+      grid-template-columns:220px 1fr;
+      gap:14px;
+      align-items:center;
+    }
+    .player-name-strip strong{font-size:1rem}
+    .player-name-strip input{font-size:1.05rem;font-weight:850}
+
+    .steps{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+      margin:18px 0;
+      position:sticky;
+      top:8px;
+      z-index:10;
+      backdrop-filter:blur(14px);
+    }
+    .step-btn{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+      border-radius:18px;
+      padding:13px 10px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.07);
+      color:var(--muted);
+      font-weight:900;
+      box-shadow:none;
+    }
+    .step-btn.active{background:linear-gradient(135deg,rgba(255,159,28,.95),rgba(255,123,0,.95));color:#111633;border-color:transparent}
+    .step-btn.done{color:var(--text)}
+    .step-btn .num{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(255,255,255,.12)}
+    .step-btn.active .num{background:#111633;color:white}
+
+    section.panel{
+      display:none;
+      border:1px solid var(--line);
+      background:linear-gradient(135deg,rgba(20,29,61,.94),rgba(10,15,41,.92));
+      border-radius:30px;
+      padding:24px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
+    section.panel.active{display:block;animation:fadeUp .28s ease both}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .section-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+    h2{margin:0;font-size:clamp(1.55rem,3vw,2.45rem);letter-spacing:-.04em}
+    .helper{color:var(--muted);line-height:1.55;margin:.35rem 0 0;max-width:850px}
+
+    .grid{display:grid;gap:16px}
+    .grid.two{grid-template-columns:1fr 1fr}
+    .grid.three{grid-template-columns:repeat(3,1fr)}
+    .grid.four{grid-template-columns:repeat(4,1fr)}
+
+    .card{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:rgba(255,255,255,.065);
+      padding:18px;
+      min-width:0;
+    }
+    .card.highlight{background:linear-gradient(135deg,rgba(255,159,28,.14),rgba(255,255,255,.06));border-color:rgba(255,159,28,.32)}
+    .card-title{font-size:1.05rem;font-weight:950;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+    .small{font-size:.9rem;color:var(--muted);line-height:1.45}
+    .tiny{font-size:.78rem;color:var(--muted);line-height:1.4}
+    .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;background:rgba(255,255,255,.1);border:1px solid var(--line);font-weight:900;font-size:.8rem;color:var(--muted)}
+    .pill.good{color:#bfffd5;background:rgba(85,216,138,.14);border-color:rgba(85,216,138,.25)}
+    .pill.bad{color:#ffd0d0;background:rgba(255,66,66,.13);border-color:rgba(255,66,66,.25)}
+    .pill.warn{color:#ffe0a4;background:rgba(255,159,28,.13);border-color:rgba(255,159,28,.25)}
+
+    .control-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin:12px 0}
+    .counter{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+    .counter button{padding:8px 12px;border-radius:14px;box-shadow:none;background:rgba(255,255,255,.1);border:1px solid var(--line)}
+    .counter .value{min-width:48px;text-align:center;font-weight:950;font-size:1.35rem;background:rgba(0,0,0,.18);padding:7px 9px;border-radius:14px}
+    input, select{
+      width:100%;
+      border:1px solid var(--line);
+      border-radius:15px;
+      padding:11px 12px;
+      background:rgba(4,7,22,.65);
+      color:var(--text);
+      outline:none;
+    }
+    select option{background:#111833;color:white}
+    input:focus, select:focus{border-color:rgba(255,159,28,.7);box-shadow:0 0 0 3px rgba(255,159,28,.12)}
+
+    .budget-bar{height:18px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;border:1px solid var(--line);margin-top:12px}
+    .budget-fill{height:100%;width:0;background:linear-gradient(90deg,#55d88a,#ffcf5f,#ff4242);transition:width .25s ease}
+    .big-number{font-size:2.3rem;font-weight:1000;letter-spacing:-.05em}
+    .cost-table{width:100%;border-collapse:collapse;margin-top:12px;overflow:hidden;border-radius:15px}
+    .cost-table th,.cost-table td{border:1px solid var(--line);padding:10px;text-align:left;color:var(--muted)}
+    .cost-table th{color:white;background:rgba(0,0,0,.2)}
+    .cost-table td:last-child{text-align:right;color:white;font-weight:900}
+
+    .crew-card{position:relative;overflow:hidden}
+    .crew-card::after{content:"👩‍🚀";position:absolute;right:14px;top:4px;font-size:58px;opacity:.12}
+    .field-label{display:block;font-weight:850;margin:9px 0 6px;color:#dce4ff;font-size:.88rem}
+    .skill-row{display:grid;grid-template-columns:1fr 82px;gap:10px;align-items:center;margin:8px 0}
+    .skill-row input{padding:9px 10px;text-align:center;font-weight:900}
+    .total-line{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+    .crew-total{font-weight:1000;font-size:1.1rem}
+    .validation-list{display:grid;gap:8px;margin-top:12px}
+
+    .mission-layout{display:grid;grid-template-columns:1.5fr .9fr;gap:16px;align-items:start}
+    .map-card{min-height:610px;position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(8,19,44,.9),rgba(23,31,66,.9));}
+    .map-wrap{
+      position:relative;
+      min-height:520px;
+      padding:18px;
+      border-radius:20px;
+      background:radial-gradient(circle at 15% 20%, rgba(103,199,255,.1), transparent 24%), rgba(0,0,0,.14);
+      overflow:hidden;
+    }
+    .route-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.8}
+    .node{
+      position:absolute;
+      width:122px;
+      min-height:78px;
+      border-radius:22px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.085);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:10px;
+      font-weight:950;
+      font-size:.88rem;
+      box-shadow:0 10px 25px rgba(0,0,0,.2);
+      transition:.25s ease;
+    }
+    .node .icon{font-size:1.6rem;display:block;margin-bottom:4px}
+    .node.active{background:linear-gradient(135deg,var(--orange),#ff7300);color:#101633;transform:scale(1.06);border-color:transparent;box-shadow:0 14px 35px rgba(255,159,28,.28)}
+    .node.visited{border-color:rgba(85,216,138,.6);box-shadow:0 0 0 2px rgba(85,216,138,.12)}
+    .node.hazard::before{content:"⚠️";position:absolute;right:-6px;top:-12px;font-size:26px;filter:drop-shadow(0 5px 10px rgba(0,0,0,.35))}
+    .node.goal::before{content:"🏁";position:absolute;right:-6px;top:-12px;font-size:26px}
+
+    .node.takeoff{left:4%;top:11%}
+    .node.iss{left:8%;top:62%}
+    .node.debris{left:31%;top:23%}
+    .node.alien{left:39%;top:69%}
+    .node.comet{left:56%;top:52%}
+    .node.dock{left:72%;top:19%}
+    .node.landing{left:78%;top:65%}
+    .node.colony{left:55%;top:81%}
+
+    .rocket-token{
+      position:absolute;
+      width:52px;height:52px;
+      border-radius:50%;
+      display:grid;place-items:center;
+      font-size:28px;
+      background:linear-gradient(135deg,#ffffff,#b9d9ff);
+      color:#111633;
+      border:3px solid var(--orange);
+      box-shadow:0 12px 30px rgba(255,159,28,.3);
+      transform:translate(-50%,-50%);
+      transition:left .55s cubic-bezier(.2,.9,.2,1), top .55s cubic-bezier(.2,.9,.2,1), transform .2s ease;
+      z-index:4;
+    }
+    .rocket-token.move{transform:translate(-50%,-50%) scale(1.15) rotate(-14deg)}
+
+    .route-actions{display:grid;gap:10px;margin-top:14px}
+    .route-actions button{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;border-radius:17px;background:rgba(255,255,255,.09);box-shadow:none;border:1px solid var(--line)}
+    .route-actions button strong{font-size:.98rem}
+    .route-actions .route-meta{font-size:.78rem;color:var(--muted);font-weight:900}
+    .route-picker{
+      margin:0 0 14px;
+      padding:14px;
+      border-radius:20px;
+      border:1px solid rgba(255,159,28,.34);
+      background:linear-gradient(135deg,rgba(255,159,28,.16),rgba(255,255,255,.06));
+    }
+    .route-picker-top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+    .route-picker-grid{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+    .route-picker label{font-weight:950;color:#fff2d7;display:block;margin-bottom:6px}
+    .route-picker select{min-height:46px;font-weight:850}
+    .route-picker button{min-height:46px;white-space:nowrap}
+    .route-picker .hint{margin-top:9px;color:var(--muted);font-size:.88rem;line-height:1.4}
+    .node.available{
+      cursor:pointer;
+      border-color:rgba(255,159,28,.82);
+      box-shadow:0 0 0 3px rgba(255,159,28,.14),0 12px 28px rgba(255,159,28,.16);
+      background:rgba(255,159,28,.14);
+    }
+    .node.available::after{
+      content:"Next";
+      position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);
+      font-size:.68rem;font-weight:1000;letter-spacing:.04em;text-transform:uppercase;
+      color:#111633;background:var(--orange);border-radius:999px;padding:3px 8px;
+      box-shadow:0 7px 16px rgba(0,0,0,.25);
+    }
+
+    .status-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+    .status-tile{border:1px solid var(--line);background:rgba(255,255,255,.065);border-radius:18px;padding:13px}
+    .status-tile .label{color:var(--muted);font-size:.76rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+    .status-tile .value{font-size:1.55rem;font-weight:1000;margin-top:4px}
+    .bar{height:9px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:8px}
+    .bar > span{display:block;height:100%;background:linear-gradient(90deg,#55d88a,#ffcf5f,#ff4242);width:100%;transition:width .25s ease}
+
+    .crew-mini{display:grid;gap:8px;margin-top:10px}
+    .crew-mini-row{border:1px solid var(--line);border-radius:15px;padding:10px;background:rgba(0,0,0,.12)}
+    .crew-mini-top{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:900}
+    .skill-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+    .skill-chips span{font-size:.72rem;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--muted)}
+
+    .log{
+      max-height:330px;
+      overflow:auto;
+      display:flex;
+      flex-direction:column-reverse;
+      gap:8px;
+      padding-right:4px;
+    }
+    .log-entry{border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:15px;padding:10px;line-height:1.4;color:#e8edff;font-size:.9rem}
+    .log-entry strong{color:var(--orange)}
+
+    .ability-panel{display:grid;gap:8px;margin-top:10px}
+    .ability-action{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.055)}
+    .ability-action button{padding:8px 10px;box-shadow:none;border-radius:13px;font-size:.8rem}
+
+    .modal{
+      position:fixed;inset:0;display:none;place-items:center;z-index:50;background:rgba(1,4,16,.72);backdrop-filter:blur(10px);padding:18px;
+    }
+    .modal.show{display:grid;animation:fadeUp .18s ease both}
+    .modal-card{width:min(620px,100%);background:linear-gradient(135deg,#17204a,#0d1436);border:1px solid var(--line);border-radius:28px;box-shadow:0 25px 80px rgba(0,0,0,.5);padding:22px;position:relative;overflow:hidden}
+    .modal-card::after{content:"🪐";position:absolute;right:18px;top:8px;font-size:86px;opacity:.08}
+    .modal-title{font-size:1.6rem;font-weight:1000;margin:0 0 10px}
+    .modal-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:18px}
+    .coin-wrap{display:grid;place-items:center;gap:14px;margin:18px 0}
+    .coin{
+      width:130px;height:130px;border-radius:50%;display:grid;place-items:center;
+      background:linear-gradient(135deg,#ffe6a6,#ff9f1c 45%,#c36b00);
+      box-shadow:0 18px 45px rgba(255,159,28,.28), inset 0 6px 10px rgba(255,255,255,.35), inset 0 -8px 18px rgba(0,0,0,.25);
+      font-size:2.1rem;font-weight:1000;color:#161a32;border:6px solid rgba(255,255,255,.34);
+    }
+    .coin.flip{animation:coinFlip .9s ease-in-out infinite}
+    @keyframes coinFlip{0%{transform:rotateY(0) translateY(0)}50%{transform:rotateY(720deg) translateY(-18px)}100%{transform:rotateY(1440deg) translateY(0)}}
+
+    .result-card{text-align:center;padding:26px;border-radius:26px;background:rgba(255,255,255,.065);border:1px solid var(--line)}
+    .result-icon{font-size:5rem;margin-bottom:8px}
+    .scoreboard{display:grid;gap:10px;margin-top:16px}
+    .score-row{display:grid;grid-template-columns:1fr repeat(4,auto);gap:12px;align-items:center;padding:12px;border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:16px}
+
+    .student-result-card{margin-bottom:16px;background:linear-gradient(135deg,rgba(255,159,28,.13),rgba(102,199,255,.08));border-color:rgba(255,159,28,.32)}
+    .student-result-card input{font-size:1.05rem;font-weight:800;border-color:rgba(255,159,28,.35)}
+    .dashboard-shell{text-align:left}
+    .dashboard-hero{
+      display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;
+      border:1px solid rgba(255,159,28,.35);border-radius:28px;padding:22px;
+      background:linear-gradient(135deg,rgba(255,159,28,.18),rgba(102,199,255,.08));
+      overflow:hidden;position:relative;
+    }
+    .dashboard-hero::after{content:"🪐";position:absolute;right:28%;top:-24px;font-size:120px;opacity:.06}
+    .medal-card{min-width:150px;text-align:center;border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.08);padding:14px}
+    .medal-icon{font-size:3.2rem;line-height:1}
+    .medal-name{font-size:1.1rem;font-weight:1000;margin-top:6px}
+    .metric-card{border:1px solid var(--line);border-radius:24px;background:rgba(255,255,255,.06);padding:18px}
+    .metric-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+    .metric-name{font-weight:1000;font-size:1.05rem}
+    .metric-score{font-weight:1000;font-size:1.8rem;letter-spacing:-.04em;color:var(--orange)}
+    .metric-bar{height:12px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;border:1px solid var(--line);margin:8px 0 10px}
+    .metric-bar span{display:block;height:100%;background:linear-gradient(90deg,#55d88a,#ffcf5f,#ff9f1c);border-radius:999px}
+    .badge-board{display:flex;flex-wrap:wrap;gap:9px;margin-top:10px}
+    .play-badge{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:9px 12px;font-weight:950;background:rgba(255,255,255,.09);border:1px solid var(--line)}
+    .feedback-box{border-left:4px solid var(--orange);padding-left:14px}
+    .certificate-preview{
+      margin-top:16px;border:2px solid rgba(255,159,28,.42);border-radius:30px;
+      padding:28px;text-align:center;background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,159,28,.09));
+      position:relative;overflow:hidden;
+    }
+    .certificate-preview::before{content:"★";position:absolute;left:24px;top:14px;font-size:80px;opacity:.08}
+    .certificate-preview::after{content:"🚀";position:absolute;right:24px;bottom:8px;font-size:90px;opacity:.08}
+    .certificate-title{font-size:1rem;text-transform:uppercase;letter-spacing:.18em;color:var(--orange);font-weight:1000}
+    .certificate-name{font-size:clamp(2rem,5vw,4.5rem);line-height:1;font-weight:1000;letter-spacing:-.06em;margin:12px 0}
+    .certificate-sub{font-size:1.15rem;color:var(--muted);line-height:1.5;max-width:820px;margin:0 auto}
+    .print-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px}
+
+    .toast{
+      position:fixed;right:18px;bottom:18px;z-index:80;display:grid;gap:10px;max-width:360px;
+    }
+    .toast-msg{padding:13px 15px;border-radius:16px;background:rgba(18,25,57,.96);border:1px solid var(--line);box-shadow:0 12px 30px rgba(0,0,0,.28);animation:toastIn .2s ease both}
+    @keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+    .confetti{position:fixed;inset:0;pointer-events:none;z-index:70;overflow:hidden}
+    .confetti span{position:absolute;top:-20px;width:10px;height:14px;border-radius:3px;background:var(--orange);animation:fall 3.5s linear forwards}
+    @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.15}}
+
+
+    /* ===== Login + leaderboard ===== */
+    .login-overlay{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:20px;
+      background:radial-gradient(circle at 85% 8%, rgba(255,159,28,.25), transparent 30%),
+                 radial-gradient(circle at 10% 85%, rgba(102,199,255,.15), transparent 28%),
+                 linear-gradient(135deg,#06091f 0%,#0b1230 48%,#050716 100%)}
+    .login-card{width:min(440px,100%);background:linear-gradient(135deg,#17204a,#0d1436);border:1px solid var(--line);
+      border-radius:28px;box-shadow:0 25px 80px rgba(0,0,0,.5);padding:30px 26px;text-align:center}
+    .login-rocket{font-size:58px;line-height:1}
+    .login-card h1{margin:8px 0 4px;font-size:2rem;letter-spacing:-.04em}
+    .login-card p{color:var(--muted);margin:0 0 18px}
+    .login-card label{display:block;text-align:left;font-weight:800;font-size:.85rem;margin:12px 0 6px;color:var(--muted)}
+    .login-card button{width:100%;margin-top:18px;font-size:1.05rem}
+    .login-error{min-height:20px;margin-top:10px;color:var(--red);font-weight:700;font-size:.92rem}
+    .login-note{margin-top:12px;font-size:.8rem;color:var(--muted)}
+    .session-info{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    .session-info .session-name{font-size:1.15rem;font-weight:900}
+    .session-info button{padding:8px 14px}
+    .lb-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+    .lb-head .card-title{margin:0}
+    .score-row.me{outline:2px solid var(--orange);background:rgba(255,159,28,.14)}
+    .score-row .rank{min-width:38px;font-size:1.2rem}
+
+
+    /* ===== Arrival report, manual, leaderboard screen ===== */
+    .modal{z-index:300}
+    .toast{z-index:400}
+    .modal-card.tall{max-height:90vh;overflow:auto;width:min(720px,100%)}
+    .report-head{display:flex;gap:14px;align-items:center;margin-bottom:6px}
+    .report-icon{font-size:52px;line-height:1}
+    .report-story{font-size:1.08rem;line-height:1.6;margin:12px 0 14px}
+    .report-section-title{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:900;margin:14px 0 8px}
+    .report-chips{display:flex;flex-wrap:wrap;gap:8px}
+    .report-chips .pill{font-size:.95rem}
+    .report-hazard{padding:10px 12px;border-radius:14px;background:rgba(255,66,66,.12);border:1px solid rgba(255,66,66,.35);margin:10px 0}
+    .report-time{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+    .report-over{margin-top:14px;padding:12px 14px;border-radius:16px;background:rgba(255,66,66,.16);border:1px solid rgba(255,66,66,.45);font-weight:800}
+    .report-win{margin-top:14px;padding:12px 14px;border-radius:16px;background:rgba(85,216,138,.16);border:1px solid rgba(85,216,138,.45);font-weight:800}
+    .manual h3{margin:22px 0 8px;font-size:1.2rem}
+    .manual h3:first-child{margin-top:4px}
+    .manual h4{margin:16px 0 6px}
+    .manual p,.manual li{line-height:1.6;color:var(--text)}
+    .manual ul,.manual ol{padding-left:22px;margin:6px 0}
+    .manual-table{width:100%;border-collapse:collapse;margin:8px 0}
+    .manual-table th,.manual-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+    .manual-table th{color:var(--orange)}
+    .manual-link{display:inline-block;margin-right:auto;color:var(--blue);font-weight:800;text-decoration:none;align-self:center}
+    .login-links{margin-top:14px}
+    .login-links a{color:var(--blue);font-weight:800;cursor:pointer;text-decoration:none}
+    .score-row.lb{grid-template-columns:44px 1fr auto auto auto}
+    .your-result{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+    .steps{grid-template-columns:repeat(5,1fr)}
+    @media (max-width: 1040px){.steps{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width: 680px){
+      .score-row.lb{grid-template-columns:36px 1fr auto}
+      .score-row.lb .pill{display:none}
+      .step-btn{padding:11px 8px}
+    }
+
+    .hidden{display:none!important}
+
+    @media print{
+      @page{size:A4 portrait;margin:8mm}
+      html, body{
+        width:100%!important;
+        margin:0!important;
+        padding:0!important;
+        background:#ffffff!important;
+        color:#111633!important;
+        -webkit-print-color-adjust:exact!important;
+        print-color-adjust:exact!important;
+      }
+      body *{visibility:hidden!important}
+      body.print-dashboard #resultsContent, body.print-dashboard #resultsContent *,
+      body.print-certificate #certificatePrintArea, body.print-certificate #certificatePrintArea *{visibility:visible!important}
+
+      body.print-dashboard .app, body.print-certificate .app{max-width:none!important;margin:0!important;padding:0!important}
+      body.print-dashboard #step4, body.print-certificate #step4{display:block!important;background:#fff!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important}
+      body.print-dashboard .hero, body.print-dashboard .steps, body.print-dashboard .section-head,
+      body.print-dashboard .student-result-card, body.print-dashboard .top-actions, body.print-dashboard #scoreboard,
+      body.print-dashboard #certificatePrintArea, body.print-certificate #resultsContent,
+      body.print-certificate .hero, body.print-certificate .steps, body.print-certificate .section-head,
+      body.print-certificate .student-result-card, body.print-certificate .top-actions, body.print-certificate .card:not(.certificate-preview){display:none!important}
+
+      body.print-dashboard #resultsContent, body.print-certificate #certificatePrintArea{
+        position:fixed!important;
+        left:0!important;
+        top:0!important;
+        margin:0!important;
+        box-shadow:none!important;
+        border:0!important;
+        overflow:hidden!important;
+        -webkit-print-color-adjust:exact!important;
+        print-color-adjust:exact!important;
+      }
+
+      /* Colourful A4 portrait dashboard: one-page fit */
+      body.print-dashboard #resultsContent{
+        width:194mm!important;
+        height:281mm!important;
+        padding:0!important;
+        border-radius:0!important;
+        text-align:left!important;
+        background:linear-gradient(145deg,#061333 0%,#13245a 46%,#38195b 100%)!important;
+        color:#ffffff!important;
+      }
+      body.print-dashboard #resultsContent::before{
+        content:""!important;
+        position:absolute!important;
+        inset:-18mm!important;
+        background:
+          radial-gradient(circle at 14% 10%,rgba(255,159,28,.45),transparent 28%),
+          radial-gradient(circle at 84% 18%,rgba(102,199,255,.32),transparent 30%),
+          radial-gradient(circle at 22% 92%,rgba(85,216,138,.25),transparent 28%)!important;
+        z-index:0!important;
+      }
+      body.print-dashboard #resultsContent::after{
+        content:"PROJECT MARS"!important;
+        position:absolute!important;
+        right:-16mm!important;
+        bottom:18mm!important;
+        transform:rotate(-90deg)!important;
+        font-size:18pt!important;
+        letter-spacing:.34em!important;
+        font-weight:1000!important;
+        color:rgba(255,255,255,.12)!important;
+        z-index:0!important;
+      }
+      body.print-dashboard .dashboard-shell{
+        position:relative!important;
+        z-index:1!important;
+        width:194mm!important;
+        height:281mm!important;
+        padding:8mm!important;
+        transform:none!important;
+        color:#ffffff!important;
+      }
+      body.print-dashboard .dashboard-hero{
+        padding:6mm!important;
+        border-radius:9mm!important;
+        grid-template-columns:20mm 1fr 34mm!important;
+        gap:4mm!important;
+        background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,159,28,.22))!important;
+        border:1.4px solid rgba(255,255,255,.45)!important;
+        box-shadow:0 8mm 18mm rgba(0,0,0,.18)!important;
+        page-break-inside:avoid!important;
+      }
+      body.print-dashboard .dashboard-hero::after{color:rgba(255,255,255,.18)!important;opacity:.28!important}
+      body.print-dashboard .dashboard-hero h2{font-size:22pt!important;line-height:1.03!important;margin:1mm 0!important;color:#ffffff!important}
+      body.print-dashboard .dashboard-hero .eyebrow{font-size:7.5pt!important;color:#ffd27a!important;letter-spacing:.16em!important}
+      body.print-dashboard .dashboard-hero .result-icon{font-size:27pt!important;margin:0!important}
+      body.print-dashboard .medal-card{
+        min-width:30mm!important;
+        border-radius:7mm!important;
+        padding:4mm!important;
+        background:linear-gradient(145deg,#fff7d6,#ffc75f 48%,#ff9f1c)!important;
+        border:1px solid rgba(255,255,255,.75)!important;
+        color:#111633!important;
+        box-shadow:0 5mm 12mm rgba(0,0,0,.2)!important;
+      }
+      body.print-dashboard .medal-icon{font-size:25pt!important}
+      body.print-dashboard .medal-name{font-size:10pt!important;color:#111633!important}
+      body.print-dashboard .grid{gap:3mm!important}
+      body.print-dashboard .grid.four{grid-template-columns:repeat(4,1fr)!important;margin-top:4mm!important}
+      body.print-dashboard .grid.three{grid-template-columns:repeat(3,1fr)!important;margin-top:4mm!important}
+      body.print-dashboard .grid.two{grid-template-columns:1fr 1fr!important;margin-top:4mm!important}
+      body.print-dashboard .stat-card,
+      body.print-dashboard .metric-card,
+      body.print-dashboard .card,
+      body.print-dashboard .result-card{
+        background:rgba(255,255,255,.94)!important;
+        color:#111633!important;
+        border:1.2px solid rgba(255,255,255,.7)!important;
+        box-shadow:0 4mm 12mm rgba(0,0,0,.13)!important;
+        border-radius:5mm!important;
+        padding:3.7mm!important;
+        page-break-inside:avoid!important;
+      }
+      body.print-dashboard .stat-label{font-size:7pt!important;color:#526079!important;font-weight:1000!important;letter-spacing:.08em!important}
+      body.print-dashboard .stat-value{font-size:15pt!important;color:#111633!important;font-weight:1000!important}
+      body.print-dashboard .metric-name{font-size:9.2pt!important;color:#111633!important}
+      body.print-dashboard .metric-score{font-size:17pt!important;color:#ff7b00!important}
+      body.print-dashboard .metric-bar{height:4mm!important;margin:2mm 0!important;border:1px solid rgba(255,159,28,.35)!important;background:#eef3ff!important}
+      body.print-dashboard .metric-bar span{background:linear-gradient(90deg,#36d483,#ffd15c,#ff8a00)!important}
+      body.print-dashboard .helper,
+      body.print-dashboard .small,
+      body.print-dashboard .tiny{font-size:7.9pt!important;line-height:1.22!important;color:#33415f!important;margin-top:1mm!important}
+      body.print-dashboard .dashboard-hero .helper,
+      body.print-dashboard .dashboard-hero .small,
+      body.print-dashboard .dashboard-hero .tiny{color:#eaf2ff!important}
+      body.print-dashboard .medal-card .tiny{color:#4e3600!important}
+      body.print-dashboard .pill,
+      body.print-dashboard .play-badge{
+        border:1px solid rgba(255,159,28,.35)!important;
+        color:#111633!important;
+        background:linear-gradient(135deg,#fff8df,#ffffff)!important;
+        font-size:7.4pt!important;
+        padding:1.7mm 2.4mm!important;
+      }
+      body.print-dashboard .badge-board{gap:1.4mm!important;margin-top:2mm!important}
+      body.print-dashboard .feedback-box{
+        border-left:3mm solid #ff9f1c!important;
+        padding-left:3mm!important;
+        margin-top:4mm!important;
+        background:linear-gradient(135deg,#fff8e5,#eef7ff)!important;
+      }
+      body.print-dashboard .print-actions{display:none!important}
+
+      /* Colourful A4 landscape certificate: full-page fit */
+      body.print-certificate #certificatePrintArea{
+        width:281mm!important;
+        height:194mm!important;
+        display:grid!important;
+        place-items:center!important;
+        padding:0!important;
+        background:linear-gradient(135deg,#061333,#13245a 45%,#401b64)!important;
+      }
+      body.print-certificate #certificatePrintArea::before{
+        content:""!important;
+        position:absolute!important;
+        inset:-12mm!important;
+        background:
+          radial-gradient(circle at 11% 18%,rgba(255,159,28,.42),transparent 25%),
+          radial-gradient(circle at 88% 16%,rgba(102,199,255,.32),transparent 28%),
+          radial-gradient(circle at 80% 88%,rgba(85,216,138,.20),transparent 24%)!important;
+      }
+      body.print-certificate .certificate-preview{
+        position:relative!important;
+        width:261mm!important;
+        height:174mm!important;
+        min-height:0!important;
+        display:grid!important;
+        align-content:center!important;
+        border:2.6mm solid #ffcf5f!important;
+        outline:1.2mm solid rgba(255,255,255,.78)!important;
+        border-radius:15mm!important;
+        padding:15mm!important;
+        background:
+          radial-gradient(circle at 50% 8%,rgba(255,255,255,.92),rgba(255,255,255,.88) 22%,rgba(255,247,221,.94) 58%,rgba(235,244,255,.95))!important;
+        color:#111633!important;
+        box-shadow:0 10mm 26mm rgba(0,0,0,.28)!important;
+        page-break-inside:avoid!important;
+      }
+      body.print-certificate .certificate-preview::before{content:"★"!important;left:12mm!important;top:7mm!important;font-size:42pt!important;color:rgba(255,159,28,.28)!important;opacity:1!important}
+      body.print-certificate .certificate-preview::after{content:"🚀"!important;right:12mm!important;bottom:8mm!important;font-size:44pt!important;opacity:.18!important}
+      body.print-certificate .certificate-title{font-size:13pt!important;color:#ff7b00!important;letter-spacing:.16em!important;font-weight:1000!important}
+      body.print-certificate .certificate-name{font-size:45pt!important;line-height:1!important;color:#111633!important;margin:5mm 0!important;text-shadow:0 1mm 0 #fff2c9!important}
+      body.print-certificate .certificate-sub{font-size:13.2pt!important;line-height:1.45!important;color:#283653!important;max-width:228mm!important}
+      body.print-certificate .grid.four{grid-template-columns:repeat(4,1fr)!important;gap:5mm!important;margin-top:8mm!important}
+      body.print-certificate .stat-card{
+        background:linear-gradient(135deg,#ffffff,#fff3cc)!important;
+        color:#111633!important;
+        border:1.2px solid rgba(255,159,28,.38)!important;
+        box-shadow:0 3mm 8mm rgba(0,0,0,.10)!important;
+        border-radius:6mm!important;
+        padding:4.5mm!important;
+      }
+      body.print-certificate .stat-label{font-size:8pt!important;color:#636d85!important;font-weight:1000!important}
+      body.print-certificate .stat-value{font-size:18pt!important;color:#111633!important;font-weight:1000!important}
+      body.print-certificate .tiny{color:#5b6681!important;font-size:8.5pt!important}
+      body.print-certificate .print-actions{display:none!important}
+    }
+
+    @media (max-width: 1040px){
+      .player-name-strip{grid-template-columns:1fr;}
+      .hero,.mission-layout,.grid.two,.grid.three,.grid.four{grid-template-columns:1fr}
+      .mission-stats,.status-grid{grid-template-columns:repeat(2,1fr)}
+      .map-card{min-height:640px}
+      .steps{grid-template-columns:repeat(2,1fr);position:static}
+    }
+    @media (max-width: 680px){
+      .app{padding:14px 10px 60px}
+      .hero-card, section.panel{border-radius:22px;padding:16px}
+      .mission-stats,.status-grid{grid-template-columns:1fr}
+      .map-wrap{min-height:700px}
+      .node{width:108px;font-size:.76rem;min-height:70px}
+      .node.takeoff{left:4%;top:6%}.node.debris{left:45%;top:12%}.node.dock{left:58%;top:35%}.node.landing{left:58%;top:61%}.node.colony{left:18%;top:78%}.node.iss{left:5%;top:31%}.node.alien{left:13%;top:56%}.node.comet{left:36%;top:46%}
+      .score-row{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Knowledge Explorers · Project Mars</div>
+        <h1>Crew Selection Simulation</h1>
+        <p class="subtitle">Build your rocket, assign your crew, travel across the mission map, and let the website automatically handle oxygen reduction, skill checks, hazards, coin flips, and winning conditions.</p>
+        <div class="top-actions">
+          <button onclick="goStep(1)">Start Planning 🚀</button>
+          <button class="secondary" onclick="openManual()">📖 How to Play</button>
+          <button class="secondary" onclick="openRules()">View Rules</button>
+          <button class="secondary" onclick="resetEverything()">Reset Game</button>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="mission-stats">
+          <div class="stat-card"><div class="stat-label">Objective</div><div class="stat-value">Under 9 months</div></div>
+          <div class="stat-card"><div class="stat-label">Budget</div><div class="stat-value">950 Y$</div></div>
+          <div class="stat-card"><div class="stat-label">Crew Size</div><div class="stat-value">3</div></div>
+          <div class="stat-card"><div class="stat-label">Coin Tosses</div><div class="stat-value">Auto</div></div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="steps" aria-label="Game steps">
+      <button class="step-btn active" id="stepBtn1" onclick="goStep(1)"><span class="num">1</span> Build Rocket</button>
+      <button class="step-btn" id="stepBtn2" onclick="goStep(2)"><span class="num">2</span> Build Crew</button>
+      <button class="step-btn" id="stepBtn3" onclick="goStep(3)"><span class="num">3</span> Mission Control</button>
+      <button class="step-btn" id="stepBtn4" onclick="goStep(4)"><span class="num">4</span> Results</button>
+      <button class="step-btn" id="stepBtn5" onclick="goStep(5)"><span class="num">5</span> Leaderboard</button>
+    </nav>
+
+    <div class="player-name-strip">
+      <strong>🧑‍🚀 Player</strong>
+      <div class="session-info">
+        <span class="session-name" id="sessionName"></span>
+        <span class="pill" id="sessionClass"></span>
+        <button class="secondary" onclick="logout()">Log out</button>
+      </div>
+    </div>
+
+    <section class="panel active" id="step1">
+      <div class="section-head">
+        <div>
+          <h2>1. Build Your Rocket 🧰</h2>
+          <p class="helper">Spend your Yogi Dollars wisely. Oxygen is used for travel, while armour protects your rocket from damage. Oxygen or armour reaching zero ends the game.</p>
+        </div>
+        <span class="pill warn">Oxygen: 50 Y$ · Armour: 75 Y$</span>
+      </div>
+      <div class="grid two">
+        <div class="card highlight">
+          <p class="card-title">🫙 Supplies</p>
+          <div class="control-row">
+            <div><strong>Oxygen Pods</strong><div class="small">1 month of travel automatically removes 1 oxygen pod.</div></div>
+            <div class="counter"><button onclick="changeSupply('oxygen',-1)">−</button><div class="value" id="oxygenSetup">8</div><button onclick="changeSupply('oxygen',1)">+</button></div>
+          </div>
+          <div class="control-row">
+            <div><strong>Plating Armour</strong><div class="small">Armour absorbs route damage, scenario damage, and hazard damage.</div></div>
+            <div class="counter"><button onclick="changeSupply('armor',-1)">−</button><div class="value" id="armorSetup">5</div><button onclick="changeSupply('armor',1)">+</button></div>
+          </div>
+          <table class="cost-table" aria-label="Rocket supply cost table">
+            <thead><tr><th>Criteria</th><th>Count</th><th>Cost</th></tr></thead>
+            <tbody>
+              <tr><td>Oxygen</td><td id="oxygenCountCell">8</td><td id="oxygenCostCell">400 Y$</td></tr>
+              <tr><td>Armour</td><td id="armorCountCell">5</td><td id="armorCostCell">375 Y$</td></tr>
+              <tr><td><strong>Total</strong></td><td></td><td id="totalCostCell">775 Y$</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <p class="card-title">💰 Budget Check</p>
+          <div class="grid two">
+            <div>
+              <div class="small">Available Budget</div>
+              <div class="big-number" id="budgetAvailable">950 Y$</div>
+            </div>
+            <div>
+              <div class="small">Money Left</div>
+              <div class="big-number" id="budgetLeft">175 Y$</div>
+            </div>
+          </div>
+          <div class="budget-bar"><div class="budget-fill" id="budgetFill"></div></div>
+          <p class="small" id="budgetMessage">Good balance. You still have some money left.</p>
+          <p class="small">💡 Tip: every month of travel uses 1 oxygen pod. Plan your route first, then decide what to buy.</p>
+        </div>
+      </div>
+      <div class="top-actions" style="justify-content:flex-end;margin-top:18px">
+        <button onclick="goStep(2)">Next: Build Crew 👩‍🚀</button>
+      </div>
+    </section>
+
+    <section class="panel" id="step2">
+      <div class="section-head">
+        <div>
+          <h2>2. Build Your Crew 👨‍🚀</h2>
+          <p class="helper">Each crewmate gets 10 skill points. High IQ gets 11. You need a Pilot with more than 5 pilot points and a Copilot with more than 3 pilot points.</p>
+        </div>
+        <span class="pill" id="crewValidationPill">Waiting for validation</span>
+      </div>
+      <div class="grid three" id="crewCards"></div>
+      <div class="grid two" style="margin-top:16px">
+        <div class="card">
+          <p class="card-title">✅ Mission Requirements</p>
+          <div class="validation-list" id="validationList"></div>
+        </div>
+        <div class="card">
+          <p class="card-title">✨ Special Ability Notes</p>
+          <p class="small" id="abilityNotes">Pick special abilities to unlock extra oxygen, money, re-flips, repairs, healing, and secret advice.</p>
+        </div>
+      </div>
+      <div class="top-actions" style="justify-content:space-between;margin-top:18px">
+        <button class="secondary" onclick="goStep(1)">Back</button>
+        <button id="startMissionBtn" onclick="startMission()">Start Mission 🚀</button>
+      </div>
+    </section>
+
+    <section class="panel" id="step3">
+      <div class="section-head">
+        <div>
+          <h2>3. Mission Control 🛰️</h2>
+          <p class="helper">Choose a route. The system automatically reduces oxygen by travel months, flips coins for hazards, checks crew skills, and updates your resources.</p>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          <button class="secondary" onclick="openNavigationGuide()">Map Guide</button>
+          <button class="secondary" onclick="openManual()">📖 Full Manual</button>
+          <span class="pill good" id="missionStatePill">Mission ready</span>
+        </div>
+      </div>
+
+      <div class="mission-layout">
+        <div class="card map-card">
+          <p class="card-title">🗺️ Mission Map</p>
+          <div class="route-picker" id="routePicker">
+            <div class="route-picker-top">
+              <div>
+                <strong>🧭 Choose Next Route</strong>
+                <div class="tiny">Pick one available next step, then fly the rocket.</div>
+              </div>
+              <span class="pill warn" id="routeDeadlinePill">Target: under 9 months</span>
+            </div>
+            <div class="route-picker-grid">
+              <div>
+                <label for="routeSelect">Available next route</label>
+                <select id="routeSelect" aria-label="Choose next route"></select>
+              </div>
+              <button class="good" id="flySelectedRouteBtn" onclick="chooseSelectedRoute()">Fly to Chosen Route 🚀</button>
+            </div>
+            <div class="hint" id="routePickerHint">Launch the mission to see your first route choices.</div>
+          </div>
+          <div class="map-wrap" id="mapWrap">
+            <svg class="route-svg" viewBox="0 0 1000 680" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L8,3 z" fill="rgba(255,255,255,.58)" />
+                </marker>
+                <marker id="hazardArrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L8,3 z" fill="rgba(255,88,88,.9)" />
+                </marker>
+              </defs>
+              <line x1="115" y1="105" x2="372" y2="170" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#arrow)"/>
+              <line x1="115" y1="120" x2="135" y2="480" stroke="rgba(255,88,88,.85)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#hazardArrow)"/>
+              <line x1="160" y1="475" x2="365" y2="228" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#arrow)"/>
+              <line x1="420" y1="190" x2="770" y2="150" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#arrow)"/>
+              <line x1="440" y1="255" x2="485" y2="500" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#arrow)"/>
+              <line x1="520" y1="515" x2="625" y2="410" stroke="rgba(255,88,88,.85)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#hazardArrow)"/>
+              <line x1="670" y1="390" x2="795" y2="210" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#arrow)"/>
+              <line x1="812" y1="220" x2="840" y2="475" stroke="rgba(255,88,88,.85)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#hazardArrow)"/>
+              <path d="M830 190 C 975 255, 955 405, 870 485" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#arrow)"/>
+              <line x1="830" y1="535" x2="640" y2="595" stroke="rgba(255,88,88,.85)" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#hazardArrow)"/>
+            </svg>
+            <div class="node takeoff" id="node-takeoff"><span><span class="icon">🌍</span>Take Off</span></div>
+            <div class="node iss hazard" id="node-iss"><span><span class="icon">🛰️</span>The ISS</span></div>
+            <div class="node debris" id="node-debris"><span><span class="icon">☄️</span>Space Debris</span></div>
+            <div class="node alien" id="node-alien"><span><span class="icon">🛸</span>Alien Ship</span></div>
+            <div class="node comet" id="node-comet"><span><span class="icon">💧</span>Oxygen Comet</span></div>
+            <div class="node dock" id="node-dock"><span><span class="icon">🛰️</span>Space Dock</span></div>
+            <div class="node landing" id="node-landing"><span><span class="icon">🔴</span>Mars Landing</span></div>
+            <div class="node colony goal" id="node-colony"><span><span class="icon">🏠</span>Mars Colony</span></div>
+            <div class="rocket-token" id="rocketToken">🚀</div>
+          </div>
+          <div class="route-actions" id="routeActions"></div>
+
+          <div class="card highlight" style="margin-top:14px">
+            <p class="card-title">🚀 How to Navigate the Rocket</p>
+            <div class="grid two">
+              <div>
+                <p class="small"><strong>1. Look at the glowing rocket.</strong><br>The orange highlighted planet/station is your current location.</p>
+                <p class="small"><strong>2. Choose the next route.</strong><br>Use the route buttons below the map. Each option shows the destination, travel months, and risk level.</p>
+              </div>
+              <div>
+                <p class="small"><strong>3. Click the route button.</strong><br>The rocket moves automatically. Oxygen reduces by the number of travel months.</p>
+                <p class="small"><strong>4. Resolve the event.</strong><br>If the route has a hazard, the game flips the coin. Then the location scenario updates oxygen, armour, crew health, and mission time.</p>
+              </div>
+            </div>
+            <div class="validation-list">
+              <span class="pill good">White dashed path = normal route</span>
+              <span class="pill bad">Red dashed path = hazard route</span>
+              <span class="pill warn">Finish target: reach Mars Colony in under 9 months</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="grid">
+          <div class="card">
+            <p class="card-title">🛰️ Mission Details</p>
+            <div class="validation-list">
+              <span class="pill warn">Goal: Reach Mars Colony in under 9 months</span>
+              <span class="pill">Each travel month = −1 oxygen</span>
+              <span class="pill">Armour or oxygen reaching 0 = game over</span>
+              <span class="pill">Any crewmate health reaching 0 = game over</span>
+            </div>
+            <p class="small" style="margin-top:10px">Play by selecting one available route at a time. The Mission Log records every move, hazard coin flip, skill check, and resource change.</p>
+          </div>
+          <div class="card highlight">
+            <p class="card-title">📊 Status Board</p>
+            <div class="status-grid">
+              <div class="status-tile"><div class="label">Months</div><div class="value" id="monthsVal">0</div><div class="bar"><span id="monthsBar"></span></div></div>
+              <div class="status-tile"><div class="label">Oxygen</div><div class="value" id="oxygenVal">0</div><div class="bar"><span id="oxygenBar"></span></div></div>
+              <div class="status-tile"><div class="label">Armour</div><div class="value" id="armorVal">0</div><div class="bar"><span id="armorBar"></span></div></div>
+              <div class="status-tile"><div class="label">Money Left</div><div class="value" id="moneyVal">0</div></div>
+            </div>
+            <div class="crew-mini" id="crewMini"></div>
+          </div>
+          <div class="card">
+            <p class="card-title">🧠 Ability Console</p>
+            <div class="ability-panel" id="abilityPanel"></div>
+          </div>
+          <div class="card">
+            <p class="card-title">📜 Mission Log</p>
+            <div class="log" id="log"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="panel" id="step4">
+      <div class="section-head">
+        <div>
+          <h2>4. Results 🏁</h2>
+          <p class="helper">Review the mission outcome. Your score is saved to the class leaderboard automatically.</p>
+        </div>
+      </div>
+      <div class="card student-result-card">
+        <p class="card-title">🧑‍🚀 Player Name</p>
+        <div class="session-name" id="resultsPlayerName" style="font-size:1.3rem;font-weight:900"></div>
+        <p class="small">This name appears on the dashboard, A4 certificate, and class leaderboard. To change it, log out and log in again.</p>
+      </div>
+      <div id="resultsContent" class="result-card">
+        <div class="result-icon">🛰️</div>
+        <h2>No mission result yet</h2>
+        <p class="helper" style="margin:auto">Start a mission and reach Mars Colony, or trigger a game-over condition, to see the result here.</p>
+      </div>
+      <div id="certificatePrintArea" class="hidden"></div>
+      <div class="top-actions" style="justify-content:center;margin-top:16px">
+        <button onclick="saveScore()" id="saveScoreBtn" disabled>Save Result</button>
+        <button class="secondary" onclick="goStep(5)">Leaderboard 🏆</button>
+        <button class="secondary" onclick="newRunSameSetup()">New Run Same Setup</button>
+        <button class="secondary" onclick="resetEverything()">Reset Everything</button>
+      </div>
+    </section>
+
+    <section class="panel" id="step5">
+      <div class="section-head">
+        <div>
+          <h2>5. Leaderboard 🏆</h2>
+          <p class="helper">See how your mission compares with the rest of your class. Only each player's best attempt is shown.</p>
+        </div>
+      </div>
+      <div class="card highlight" id="yourResultCard">
+        <p class="card-title">🧑‍🚀 Your Latest Mission</p>
+        <div id="yourResult" class="your-result"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="lb-head">
+          <p class="card-title" id="lbTitle">🏆 Class Leaderboard</p>
+          <button class="secondary" onclick="loadLeaderboard()">Refresh 🔄</button>
+        </div>
+        <div id="scoreboard" class="scoreboard"></div>
+      </div>
+      <div class="top-actions" style="justify-content:center;margin-top:16px">
+        <button onclick="newRunSameSetup()">Play Again 🚀</button>
+        <button class="secondary" onclick="goStep(4)">My Results &amp; Certificate 🎓</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="login-overlay hidden" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-rocket">🚀</div>
+      <h1>Project Mars</h1>
+      <p>Enter your name and class code to start your mission.</p>
+      <label for="loginName">Your name</label>
+      <input id="loginName" maxlength="30" autocomplete="off" placeholder="e.g. Aisha Perera" />
+      <label for="loginCode">Class code</label>
+      <input id="loginCode" maxlength="20" autocomplete="off" placeholder="Ask your teacher for the code" />
+      <div class="login-error" id="loginError"></div>
+      <button id="loginBtn" onclick="doLogin()">Launch 🚀</button>
+      <div class="login-note" id="loginNote"></div>
+      <div class="login-links"><a onclick="openManual()">📖 How to Play manual</a></div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal"><div class="modal-card" id="modalCard"></div></div>
+  <div class="toast" id="toast"></div>
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    /* ===== SETUP: paste your Apps Script Web app URL between the quotes ===== */
+    const API_URL = "";   // e.g. "https://script.google.com/macros/s/XXXXXXXX/exec"
+    /* Leave empty to run in practice mode (scores saved on this device only). */
+
+    const BASE_BUDGET = 950;
+    const OXYGEN_COST = 50;
+    const ARMOR_COST = 75;
+    const SKILLS = ["leadership","marksmanship","communication","pilot","health"];
+    const SKILL_LABELS = {leadership:"Leadership",marksmanship:"Marksmanship",communication:"Communication",pilot:"Pilot Skills",health:"Health"};
+    const ABILITIES = [
+      {id:"none", name:"None", short:"No bonus", description:"No special ability."},
+      {id:"athlete", name:"Athlete", short:"+2 oxygen", description:"Receive +2 oxygen at the mission start."},
+      {id:"high_iq", name:"High IQ", short:"+1 skill point", description:"Receive 1 extra skill point to allocate for skills."},
+      {id:"flexible", name:"Flexible Learner", short:"Reallocate once", description:"Move 1 skill point to a different ability once."},
+      {id:"billionaire", name:"Billionaire", short:"+75 Y$", description:"Receive an extra 75 Yogi Dollars during rocket building."},
+      {id:"mechanic", name:"Mechanic", short:"50% armour damage reduction", description:"Reduce rocket armour damage by 50% once."},
+      {id:"strategist", name:"Strategist", short:"2 re-flips", description:"Re-flip the coin twice during the game."},
+      {id:"civil_engineer", name:"Civil Engineer", short:"−1 final month", description:"Reduce colony build time by 1 month at the end."},
+      {id:"oracle", name:"Oracle", short:"Secret info", description:"Receive confidential mission advice."},
+      {id:"medic", name:"Medic", short:"Restore 2 health", description:"Restore up to 2 health points during the mission."},
+      {id:"geologist", name:"Geologist", short:"+3 comet oxygen", description:"Extract 3 extra oxygen at the Oxygen Comet."}
+    ];
+
+    const NODE_POS = {
+      takeoff:[10,17], iss:[13,72], debris:[37,29], alien:[45,78], comet:[61,60], dock:[78,26], landing:[83,73], colony:[60,89]
+    };
+    const NODES = {
+      takeoff:{name:"Take Off", icon:"🌍"}, iss:{name:"The ISS", icon:"🛰️"}, debris:{name:"Space Debris", icon:"☄️"}, alien:{name:"Alien Ship", icon:"🛸"}, comet:{name:"Oxygen Comet", icon:"💧"}, dock:{name:"Space Dock", icon:"🛰️"}, landing:{name:"Mars Landing", icon:"🔴"}, colony:{name:"Mars Colony", icon:"🏠"}
+    };
+    const ROUTES = {
+      takeoff:[
+        {to:"debris", months:1, label:"Direct to Space Debris", note:"Fast route · no hazard"},
+        {to:"iss", months:1, label:"Visit The ISS", note:"Hazard: First Flight Nerves", hazard:"first_nerves"}
+      ],
+      iss:[{to:"debris", months:1, label:"Head to Space Debris", note:"Safe route"}],
+      debris:[
+        {to:"dock", months:3, label:"Long route to Space Dock", note:"Safe but slower"},
+        {to:"alien", months:1, label:"Dive toward Alien Ship", note:"Risky shortcut"}
+      ],
+      alien:[{to:"comet", months:2, label:"Alien Infection route to Oxygen Comet", note:"Hazard: Alien Infection", hazard:"alien_infection"}],
+      comet:[{to:"dock", months:1, label:"Fly to Space Dock", note:"Safe route"}],
+      dock:[
+        {to:"landing", months:1, label:"Use Warp Field", note:"Hazard: Warp Field", hazard:"warp_field"},
+        {to:"landing", months:3, label:"Safe orbital route", note:"Slower but no hazard"}
+      ],
+      landing:[{to:"colony", months:2, label:"Cross Martian Storm", note:"Hazard: Martian Storm", hazard:"martian_storm"}],
+      colony:[]
+    };
+
+    const HAZARDS = {
+      first_nerves:{name:"First Flight Nerves", heads:[], tails:[{type:"skill", skill:"leadership", amount:-1, label:"-1 Leadership"}]},
+      alien_infection:{name:"Alien Infection", heads:[{type:"health", amount:-1, label:"-1 Health"}], tails:[{type:"health", amount:-2, label:"-2 Health"}]},
+      warp_field:{name:"Warp Field", heads:[{type:"armor", amount:-1, label:"-1 Armour"}], tails:[{type:"armor", amount:-1, label:"-1 Armour"},{type:"oxygen", amount:-1, label:"-1 Oxygen"},{type:"retry", amount:1, label:"Retry scenario"}]},
+      martian_storm:{name:"Martian Storm", heads:[], tails:[{type:"months", amount:1, label:"+1 Month Build Time"}]}
+    };
+
+    const SCENARIOS = {
+      takeoff:{name:"Launch Stress", requirement:null, success:[{type:"health", amount:-1, label:"-1 Health"},{type:"armor", amount:-1, label:"-1 Armour"}], failure:[]},
+      iss:{name:"The ISS", requirement:{type:"skill", skill:"leadership", threshold:5, label:"Leader over 5"}, success:[{type:"oxygen", amount:3, label:"+3 Oxygen"}], failure:[]},
+      debris:{name:"Space Debris", requirement:{type:"skill", skill:"marksmanship", threshold:5, label:"Marksman over 5"}, success:[{type:"armor", amount:-1, label:"-1 Armour"}], failure:[{type:"armor", amount:-3, label:"-3 Armour"}]},
+      alien:{name:"Alien Ship", requirement:{type:"skill", skill:"communication", threshold:5, label:"Communicator over 5"}, success:[{type:"armor", amount:3, label:"+3 Armour"},{type:"oxygen", amount:2, label:"+2 Oxygen"}], failure:[{type:"armor", amount:-2, label:"-2 Armour"},{type:"oxygen", amount:1, label:"+1 Oxygen"}]},
+      comet:{name:"Oxygen Comet", requirement:null, success:[{type:"oxygen", amount:4, label:"+4 Oxygen"}], failure:[]},
+      dock:{name:"Space Dock", requirement:{type:"either", skills:["communication","leadership"], threshold:5, label:"Communicator or Leader over 5"}, success:[{type:"exchange", label:"Exchange Oxygen and Armour"}], failure:[]},
+      landing:{name:"Mars Landing", requirement:null, success:[{type:"health", amount:-1, label:"-1 Health"},{type:"armor", amount:-2, label:"-2 Armour"}], failure:[]},
+      colony:{name:"Mars Colony", requirement:null, success:[{type:"finish", label:"Finish Game"}], failure:[]}
+    };
+
+    let setup = {oxygen:0, armor:0};
+    let activeStep = 1;
+    let missionStarted = false;
+    let currentResult = null;
+    let busy = false;
+    let state = defaultMissionState();
+    try{
+      const savedPlayerName = localStorage.getItem("marsPlayerName");
+      if(savedPlayerName) state.studentName = savedPlayerName;
+    }catch(e){}
+    let crew = [1,2,3].map(n=>defaultCrew(n));
+
+    function defaultCrew(n){
+      return {name:"", ability:"", leadership:"", marksmanship:"", communication:"", pilot:"", health:""};
+    }
+    function defaultMissionState(){
+      return {
+        teamName:"Team Mars",
+        studentName:"",
+        current:"takeoff",
+        visited:["takeoff"],
+        months:0,
+        oxygen:0,
+        armor:0,
+        money:0,
+        maxOxygen:1,
+        maxArmor:1,
+        crew:[],
+        log:[],
+        gameOver:false,
+        win:false,
+        startedAt:null,
+        retryScenario:0,
+        abilities:{strategistFlips:0, mechanic:false, medicPoints:0, flexible:false, civilEngineer:false, oracle:false, geologist:false},
+        metrics:{routeChoices:0,hazardRoutes:0,safeRoutes:0,coinFlips:0,heads:0,tails:0,reflipsUsed:0},
+        takeoffScenarioDone:false
+      };
+    }
+
+    function abilityById(id){return ABILITIES.find(a=>a.id===id) || ABILITIES[0];}
+    function currency(v){return `${v} Y$`;}
+    function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
+    function totalBudget(){return BASE_BUDGET + crew.filter(c=>c.ability==="billionaire").length*75;}
+    function supplyCost(){return setup.oxygen*OXYGEN_COST + setup.armor*ARMOR_COST;}
+    function budgetLeft(){return totalBudget() - supplyCost();}
+    function hasAbility(id){return state.crew.some(c=>c.ability===id);}    
+    function getStudentName(){
+      const topInput=document.getElementById("playerNameTopInput");
+      const resultInput=document.getElementById("studentNameInput");
+      let saved = "";
+      try{saved = localStorage.getItem("marsPlayerName") || "";}catch(e){}
+      return (topInput && topInput.value.trim()) || (resultInput && resultInput.value.trim()) || state.studentName || saved || "Mars Explorer";
+    }
+    function syncNameInputs(name){
+      const value = name || state.studentName || "";
+      ["playerNameTopInput","studentNameInput"].forEach(id=>{
+        const input=document.getElementById(id);
+        if(input && input.value !== value) input.value = value;
+      });
+    }
+    function updateStudentName(name){
+      state.studentName = (name || "").trim();
+      try{
+        if(state.studentName) localStorage.setItem("marsPlayerName", state.studentName);
+        else localStorage.removeItem("marsPlayerName");
+      }catch(e){}
+      syncNameInputs(state.studentName);
+      if(currentResult){currentResult.studentName = getStudentName(); renderResults();}
+    }
+
+    function goStep(n){
+      activeStep = n;
+      if(n===5){ renderYourResult(); if(session) loadLeaderboard(); }
+      document.querySelectorAll("section.panel").forEach(s=>s.classList.remove("active"));
+      document.getElementById(`step${n}`).classList.add("active");
+      document.querySelectorAll(".step-btn").forEach((b,i)=>{
+        b.classList.toggle("active",i+1===n);
+        b.classList.toggle("done",i+1<n || (i+1===3 && missionStarted));
+      });
+      if(n===3){renderMission();setTimeout(positionRocket,80)}
+      if(n===4) renderResults();
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+
+    function changeSupply(type,delta){
+      setup[type] = clamp(setup[type]+delta,0,30);
+      renderSetup();
+    }
+    function renderSetup(){
+      const cost = supplyCost();
+      const budget = totalBudget();
+      const left = budget-cost;
+      document.getElementById("oxygenSetup").textContent=setup.oxygen;
+      document.getElementById("armorSetup").textContent=setup.armor;
+      document.getElementById("oxygenCountCell").textContent=setup.oxygen;
+      document.getElementById("armorCountCell").textContent=setup.armor;
+      document.getElementById("oxygenCostCell").textContent=currency(setup.oxygen*OXYGEN_COST);
+      document.getElementById("armorCostCell").textContent=currency(setup.armor*ARMOR_COST);
+      document.getElementById("totalCostCell").textContent=currency(cost);
+      document.getElementById("budgetAvailable").textContent=currency(budget);
+      document.getElementById("budgetLeft").textContent=currency(left);
+      const pct = clamp(cost / budget * 100,0,100);
+      document.getElementById("budgetFill").style.width=`${pct}%`;
+      const msg = document.getElementById("budgetMessage");
+      if(left<0){msg.innerHTML="⚠️ Over budget. Reduce supplies or add a Billionaire crewmate.";msg.style.color="#ffd0d0";}
+      else if(setup.oxygen===0 && setup.armor===0){msg.innerHTML="Use the + and − buttons to choose how many oxygen pods and armour plates to buy.";msg.style.color="var(--muted)";}
+      else {msg.innerHTML="Within budget. Money you do not spend counts towards your score.";msg.style.color="var(--muted)";}
+    }
+
+    function displayCrewName(i, list){
+      const c = (list || crew)[i];
+      return (c && String(c.name).trim()) || `Crewmate ${i+1}`;
+    }
+    function renderCrew(){
+      const root = document.getElementById("crewCards");
+      root.innerHTML = crew.map((c,i)=>{
+        const allowed = 10 + (c.ability==="high_iq"?1:0);
+        return `<div class="card crew-card">
+          <p class="card-title">👩‍🚀 Crewmate #${i+1}</p>
+          <label class="field-label">Name</label>
+          <input value="${escapeHtml(c.name)}" placeholder="Crewmate ${i+1} name" maxlength="20" onchange="updateCrew(${i},'name',this.value)" />
+          <label class="field-label">Special Ability</label>
+          <select onchange="updateCrew(${i},'ability',this.value)">
+            <option value="" disabled ${!c.ability?'selected':''}>Choose an ability…</option>
+            ${ABILITIES.map(a=>`<option value="${a.id}" ${a.id===c.ability?'selected':''}>${a.name} — ${a.short}</option>`).join("")}
+          </select>
+          ${SKILLS.map(skill=>`<div class="skill-row"><label>${SKILL_LABELS[skill]}</label><input type="number" min="0" max="11" placeholder="0" value="${c[skill]}" onchange="updateCrew(${i},'${skill}',this.value)" /></div>`).join("")}
+          <div class="total-line"><span class="small">Total must equal ${allowed}</span><span class="crew-total ${crewTotal(c)===allowed?'':'bad'}">${crewTotal(c)}/${allowed}</span></div>
+        </div>`;
+      }).join("");
+      renderValidation();
+      renderSetup();
+    }
+    function updateCrew(i,key,value){
+      if(SKILLS.includes(key)){
+        const n = parseInt(value,10);
+        crew[i][key] = Number.isNaN(n) ? "" : clamp(n,0,11);
+      } else crew[i][key]=value;
+      if(key==="ability" && value!=="high_iq" && crewTotal(crew[i])>10){
+        toast("This crewmate is now over 10 points. Adjust the skills before launching.");
+      }
+      renderCrew();
+    }
+    function crewTotal(c){return SKILLS.reduce((sum,k)=>sum+(parseInt(c[k],10)||0),0);}
+    function teamMax(skill, team=crew){return Math.max(...team.map(c=>parseInt(c[skill],10)||0));}
+    function totalTeamSkill(skill, team=crew){return team.reduce((sum,c)=>sum+(parseInt(c[skill],10)||0),0);}
+    function validateCrew(){
+      const pilotPts = c => parseInt(c.pilot,10)||0;
+      const totalsOk = crew.every(c=>crewTotal(c) === 10 + (c.ability==="high_iq"?1:0));
+      const pilotIndex = crew.findIndex(c=>pilotPts(c)>5);
+      const copilotOk = crew.some((c,i)=>i!==pilotIndex && pilotPts(c)>3);
+      const budgetOk = budgetLeft()>=0;
+      const suppliesOk = setup.oxygen>=1 && setup.armor>=1;
+      const abilitiesOk = crew.every(c=>!!c.ability);
+      return {totalsOk,pilotIndex,copilotOk,budgetOk,suppliesOk,abilitiesOk,all:totalsOk && pilotIndex>=0 && copilotOk && budgetOk && suppliesOk && abilitiesOk};
+    }
+    function renderValidation(){
+      const v = validateCrew();
+      const items = [
+        [v.suppliesOk,"Rocket has at least 1 oxygen pod and 1 armour plate"],
+        [v.budgetOk,"Rocket supplies are within the available budget"],
+        [v.abilitiesOk,"Every crewmate has a special ability chosen"],
+        [v.totalsOk,"Each crewmate has the correct number of skill points"],
+        [v.pilotIndex>=0,"At least one Pilot has more than 5 pilot points"],
+        [v.copilotOk,"A separate Copilot has more than 3 pilot points"]
+      ];
+      document.getElementById("validationList").innerHTML = items.map(([ok,msg])=>`<div class="pill ${ok?'good':'bad'}">${ok?'✅':'⚠️'} ${msg}</div>`).join("");
+      const pill = document.getElementById("crewValidationPill");
+      pill.textContent = v.all?"Crew ready":"Fix setup before launch";
+      pill.className = `pill ${v.all?'good':'bad'}`;
+      document.getElementById("startMissionBtn").disabled = !v.all;
+      const chosen = crew.map((c,i)=>c.ability?`<span class="pill">${escapeHtml(displayCrewName(i))}: ${abilityById(c.ability).name}</span>`:"").filter(Boolean);
+      document.getElementById("abilityNotes").innerHTML = chosen.length ? chosen.join(" ") : "Pick special abilities to unlock extra oxygen, money, re-flips, repairs, healing, and secret advice.";
+    }
+
+    let report = null, lastHazard = null, lastEncounter = null, pendingExchange = false;
+
+    async function startMission(){
+      if(busy) return;
+      const v=validateCrew();
+      if(!v.all){toast("Please fix the crew and budget before starting.");return;}
+      const enteredStudentName = getStudentName();
+      state = defaultMissionState();
+      state.studentName = enteredStudentName;
+      state.startedAt = new Date().toISOString();
+      state.oxygen = setup.oxygen;
+      state.armor = setup.armor;
+      state.maxOxygen = Math.max(setup.oxygen+12,14);
+      state.maxArmor = Math.max(setup.armor+8,10);
+      state.money = budgetLeft();
+      state.crew = crew.map((c,i)=>{
+        const out = {name:displayCrewName(i), ability:c.ability || "none"};
+        SKILLS.forEach(s=>{ out[s] = parseInt(c[s],10)||0; });
+        return out;
+      });
+      state.abilities.strategistFlips = state.crew.filter(c=>c.ability==="strategist").length*2;
+      state.abilities.mechanic = state.crew.some(c=>c.ability==="mechanic");
+      state.abilities.medicPoints = state.crew.filter(c=>c.ability==="medic").length*2;
+      state.abilities.flexible = state.crew.some(c=>c.ability==="flexible");
+      state.abilities.civilEngineer = state.crew.some(c=>c.ability==="civil_engineer");
+      state.abilities.oracle = state.crew.some(c=>c.ability==="oracle");
+      state.abilities.geologist = state.crew.some(c=>c.ability==="geologist");
+      const athletes = state.crew.filter(c=>c.ability==="athlete").length;
+      if(athletes){state.oxygen += athletes*2;addLog(`Athlete bonus activated: +${athletes*2} oxygen at mission start.`)}
+      if(state.abilities.oracle){addLog("Oracle confidential info: The Oxygen Comet route can be powerful, but protect armour before Mars Landing.")}
+      missionStarted = true;
+      currentResult = null;
+      lastHazard = null; lastEncounter = null; pendingExchange = false;
+      addLog("Mission started at Take Off.");
+      busy = true;
+      const before = snapshot();
+      applyScenario("takeoff");
+      const after = snapshot();
+      goStep(3);
+      renderMission();
+      await showArrivalReport(buildReport({to:"takeoff"}, 0, before, after, [], true));
+      busy = false;
+      renderMission();
+      if(state.gameOver) goStep(5);
+    }
+
+    function addLog(msg){
+      state.log.push({time:new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), msg});
+      renderLog();
+    }
+    function renderLog(){
+      const root = document.getElementById("log");
+      if(!root) return;
+      root.innerHTML = state.log.map(l=>`<div class="log-entry"><strong>${l.time}</strong> · ${l.msg}</div>`).join("");
+    }
+    function renderMission(){
+      if(!missionStarted){
+        document.getElementById("routeActions").innerHTML = `<button onclick="goStep(2)"><strong>Build crew first</strong><span class="route-meta">Mission not started</span></button>`;
+      }
+      renderStatus();
+      renderRoutes();
+      renderMapNodes();
+      renderLog();
+      renderAbilities();
+      positionRocket();
+    }
+    function renderStatus(){
+      document.getElementById("monthsVal").textContent = state.months;
+      document.getElementById("oxygenVal").textContent = state.oxygen;
+      document.getElementById("armorVal").textContent = state.armor;
+      document.getElementById("moneyVal").textContent = currency(state.money);
+      document.getElementById("monthsBar").style.width = `${clamp((state.months/9)*100,0,100)}%`;
+      document.getElementById("oxygenBar").style.width = `${clamp((state.oxygen/state.maxOxygen)*100,0,100)}%`;
+      document.getElementById("armorBar").style.width = `${clamp((state.armor/state.maxArmor)*100,0,100)}%`;
+      document.getElementById("missionStatePill").textContent = state.gameOver ? (state.win?"Mission complete":"Game over") : `${NODES[state.current].name}`;
+      document.getElementById("missionStatePill").className = `pill ${state.gameOver?(state.win?'good':'bad'):'good'}`;
+      document.getElementById("crewMini").innerHTML = state.crew.map(c=>{
+        const healthPct = clamp((c.health/11)*100,0,100);
+        return `<div class="crew-mini-row"><div class="crew-mini-top"><span>${escapeHtml(c.name)}</span><span>${abilityById(c.ability).name}</span></div><div class="bar"><span style="width:${healthPct}%"></span></div><div class="skill-chips"><span>H ${c.health}</span><span>L ${c.leadership}</span><span>M ${c.marksmanship}</span><span>C ${c.communication}</span><span>P ${c.pilot}</span></div></div>`;
+      }).join("");
+    }
+    function renderRoutes(){
+      const root = document.getElementById("routeActions");
+      const picker = document.getElementById("routeSelect");
+      const flyBtn = document.getElementById("flySelectedRouteBtn");
+      const hint = document.getElementById("routePickerHint");
+      const deadline = document.getElementById("routeDeadlinePill");
+      const setPicker = (html, disabled=true, hintText="")=>{
+        if(picker){picker.innerHTML = html; picker.disabled = disabled;}
+        if(flyBtn){flyBtn.disabled = disabled;}
+        if(hint){hint.innerHTML = hintText;}
+      };
+      if(!missionStarted){
+        if(root) root.innerHTML = `<button onclick="goStep(2)"><strong>Build crew first</strong><span class="route-meta">Mission not started</span></button>`;
+        setPicker(`<option>Launch mission first</option>`, true, "Launch the mission to unlock route choices.");
+        return;
+      }
+      if(deadline) deadline.textContent = `Months: ${state.months} / 9`;
+      if(state.gameOver){
+        if(root) root.innerHTML = `<button onclick="goStep(5)"><strong>View Leaderboard</strong><span class="route-meta">Mission ended</span></button>`;
+        setPicker(`<option>Mission ended</option>`, true, "Mission ended. Open the Leaderboard to see your score.");
+        return;
+      }
+      const routes = ROUTES[state.current] || [];
+      if(!routes.length){
+        if(root) root.innerHTML = `<button onclick="finishMission();goStep(5)"><strong>Finish Mission</strong><span class="route-meta">Arrived</span></button>`;
+        setPicker(`<option>Arrived at Mars Colony</option>`, true, "You are at the final location. Click Finish Mission.");
+        return;
+      }
+      const options = routes.map((r,i)=>`<option value="${i}">Next Route ${i+1}: ${r.label} — ${r.months} month${r.months>1?'s':''} · ${r.hazard?'Hazard route':'Safe route'}</option>`).join("");
+      setPicker(options, busy, busy ? "Rocket is moving. Wait for the event to finish." : `Current location: ${NODES[state.current].name}. Choose one of the next routes below.`);
+      if(root){
+        root.innerHTML = routes.map((r,i)=>`<button ${busy?'disabled':''} onclick="chooseRoute(${i})"><strong>Next Route ${i+1}: ${r.label}</strong><span class="route-meta">${r.months} month${r.months>1?'s':''} · ${r.note}</span></button>`).join("");
+      }
+    }
+
+    function chooseSelectedRoute(){
+      const picker = document.getElementById("routeSelect");
+      if(!picker || picker.disabled){toast("Launch the mission first, then choose a route."); return;}
+      const index = Number(picker.value);
+      if(Number.isNaN(index)){toast("Please choose a valid next route."); return;}
+      chooseRoute(index);
+    }
+    function renderMapNodes(){
+      const nextRoutes = missionStarted && !state.gameOver ? (ROUTES[state.current] || []) : [];
+      Object.keys(NODES).forEach(id=>{
+        const el=document.getElementById(`node-${id}`);
+        if(!el) return;
+        const matching = nextRoutes.map((r,i)=>({...r,index:i})).filter(r=>r.to===id);
+        const canClick = matching.length === 1 && !busy;
+        el.classList.toggle("active",id===state.current);
+        el.classList.toggle("visited",state.visited.includes(id));
+        el.classList.toggle("available",canClick);
+        el.onclick = canClick ? ()=>chooseRoute(matching[0].index) : null;
+        el.title = canClick ? `Next route: ${matching[0].label}` : "";
+      });
+    }
+    function positionRocket(){
+      const token=document.getElementById("rocketToken");
+      const wrap=document.getElementById("mapWrap");
+      if(!token || !wrap) return;
+      const [x,y] = NODE_POS[state.current] || NODE_POS.takeoff;
+      token.style.left = `${x}%`;
+      token.style.top = `${y}%`;
+    }
+
+    async function chooseRoute(index){
+      if(busy || state.gameOver) return;
+      const route = ROUTES[state.current][index];
+      if(!route) return;
+      busy=true;
+      renderRoutes();
+      document.getElementById("rocketToken").classList.add("move");
+      state.metrics.routeChoices++;
+      if(route.hazard) state.metrics.hazardRoutes++; else state.metrics.safeRoutes++;
+      const startMonths = state.months;
+      lastHazard = null; lastEncounter = null; pendingExchange = false;
+      addLog(`Route selected: ${route.label}. Travel time: ${route.months} month${route.months>1?'s':''}.`);
+      await wait(380);
+      state.months += route.months;
+      state.oxygen -= route.months;
+      addLog(`Travel cost applied automatically: -${route.months} oxygen.`);
+      checkGameOver();
+      const travelChips = [{label:`Travel: −${route.months} Oxygen`, good:false}];
+      if(state.gameOver){
+        document.getElementById("rocketToken").classList.remove("move");
+        renderMission();
+        await showArrivalReport(buildReport(route, startMonths, snapshot(), snapshot(), travelChips, false, true));
+        busy=false; renderMission(); goStep(5);
+        return;
+      }
+      state.current = route.to;
+      if(!state.visited.includes(route.to)) state.visited.push(route.to);
+      renderMission();
+      await wait(650);
+      document.getElementById("rocketToken").classList.remove("move");
+      const before = snapshot();
+      if(route.hazard && !state.gameOver){
+        await runHazard(route.hazard);
+      }
+      if(!state.gameOver){
+        applyScenario(route.to);
+        if(state.retryScenario>0 && !state.gameOver){
+          state.retryScenario--;
+          addLog("Warp Field retry triggered: scenario is applied one extra time.");
+          applyScenario(route.to);
+        }
+      }
+      const after = snapshot();
+      renderMission();
+      await showArrivalReport(buildReport(route, startMonths, before, after, travelChips));
+      busy=false;
+      renderMission();
+      if(pendingExchange && !state.gameOver){ pendingExchange=false; openExchangeModal(); }
+      if(state.gameOver) goStep(5);
+    }
+
+    function runHazard(hazardId){
+      return new Promise(resolve=>{
+        const hazard = HAZARDS[hazardId];
+        const modal=document.getElementById("modal");
+        const card=document.getElementById("modalCard");
+        let side=null;
+        let pendingEffects=[];
+        card.innerHTML = `<div class="modal-title">⚠️ Hazard: ${hazard.name}</div><p class="small">The coin will flip automatically. Wait for the result.</p><div class="coin-wrap"><div class="coin flip" id="coin">?</div><div class="pill warn">Flipping coin...</div></div>`;
+        modal.classList.add("show");
+        setTimeout(()=>{
+          side = Math.random()<.5?"heads":"tails";
+          state.metrics.coinFlips++;
+          state.metrics[side] = (state.metrics[side] || 0) + 1;
+          pendingEffects = hazard[side] || [];
+          const effectsText = pendingEffects.length ? pendingEffects.map(e=>e.label).join(", ") : "No effect";
+          document.getElementById("coin").classList.remove("flip");
+          document.getElementById("coin").textContent = side.toUpperCase();
+          card.innerHTML = `<div class="modal-title">${side==="heads"?'🟡 Heads':'🔵 Tails'} — ${hazard.name}</div><div class="coin-wrap"><div class="coin">${side.toUpperCase()}</div><div class="pill ${pendingEffects.length?'bad':'good'}">${effectsText}</div></div><p class="small">Apply the coin result to continue to the next route choice. A Strategist may re-flip before the effect is applied.</p><div class="modal-actions">${state.abilities.strategistFlips>0?`<button class="blue" id="reflipBtn">Use Strategist Re-flip (${state.abilities.strategistFlips})</button>`:''}<button id="acceptHazardBtn">Apply Result & Continue</button></div>`;
+          const accept=document.getElementById("acceptHazardBtn");
+          accept.onclick=()=>{
+            closeModalOnly();
+            lastHazard = {name:hazard.name, side, label:effectsText};
+            addLog(`${hazard.name} coin toss: ${side.toUpperCase()} → ${effectsText}.`);
+            applyEffects(pendingEffects, `${hazard.name} hazard`);
+            checkGameOver();
+            resolve();
+          };
+          const reflip=document.getElementById("reflipBtn");
+          if(reflip){
+            reflip.onclick=()=>{
+              state.abilities.strategistFlips--;
+              state.metrics.reflipsUsed++;
+              addLog(`Strategist re-flip used for ${hazard.name}. Re-flips left: ${state.abilities.strategistFlips}.`);
+              closeModalOnly();
+              runHazard(hazardId).then(resolve);
+            };
+          }
+        },1150);
+      });
+    }
+
+    function requirementMet(req){
+      if(!req) return true;
+      const team = state.crew.length ? state.crew : crew;
+      if(req.type==="skill") return team.some(c => (parseInt(c[req.skill],10)||0) > req.threshold);
+      if(req.type==="either") return team.some(c => req.skills.some(skill => (parseInt(c[skill],10)||0) > req.threshold));
+      return false;
+    }
+    function findHero(req){
+      if(!req) return null;
+      const skills = req.type==="skill" ? [req.skill] : req.skills;
+      let best=null, bestVal=req.threshold;
+      state.crew.forEach(c=>skills.forEach(s=>{ const v=parseInt(c[s],10)||0; if(v>bestVal){bestVal=v;best=c;} }));
+      return best;
+    }
+    function applyScenario(nodeId){
+      const scenario=SCENARIOS[nodeId];
+      if(!scenario) return;
+      if(nodeId==="colony"){
+        lastEncounter = {nodeId, pass:true, hero:null, geo:false};
+        finishMission();
+        return;
+      }
+      const pass = requirementMet(scenario.requirement);
+      const hero = pass && scenario.requirement ? findHero(scenario.requirement) : null;
+      lastEncounter = {nodeId, pass, hero: hero ? hero.name : null, geo:false};
+      const effects = [...(pass ? scenario.success : scenario.failure)];
+      const reqText = scenario.requirement ? `Requirement ${pass?'met':'not met'}: ${scenario.requirement.label}.` : "No requirement.";
+      addLog(`${scenario.name} scenario: ${reqText}`);
+      if(nodeId==="dock" && pass){
+        pendingExchange = true;
+      }
+      if(nodeId==="comet" && state.abilities.geologist){
+        effects.push({type:"oxygen",amount:3,label:"Geologist bonus +3 Oxygen"});
+        state.abilities.geologist=false;
+        lastEncounter.geo = true;
+      }
+      if(effects.length) applyEffects(effects, `${scenario.name} scenario`);
+      checkGameOver();
+    }
+
+    function applyEffects(effects, source="effect"){
+      const healthEffects = effects.filter(e=>e.type==="health" && e.amount<0);
+      const otherEffects = effects.filter(e=>!(e.type==="health" && e.amount<0));
+      for(const effect of otherEffects){applySingleEffect(effect, source)}
+      for(const effect of healthEffects){applyHealthDamage(Math.abs(effect.amount), source)}
+      renderMission();
+    }
+    function applySingleEffect(effect, source="effect"){
+      if(effect.type==="oxygen") state.oxygen += effect.amount;
+      if(effect.type==="months") state.months += effect.amount;
+      if(effect.type==="armor"){
+        let amt=effect.amount;
+        if(amt<0 && state.abilities.mechanic && Math.abs(amt)>=2){
+          const original = Math.abs(amt);
+          const reduced = Math.max(1, Math.floor(original/2));
+          amt = -reduced;
+          state.abilities.mechanic=false;
+          addLog(`Mechanic ability used automatically: armour damage reduced from ${original} to ${reduced}.`);
+        }
+        state.armor += amt;
+      }
+      if(effect.type==="skill"){
+        const target = findCrewForSkill(effect.skill);
+        if(target){target[effect.skill]=Math.max(0,target[effect.skill]+effect.amount);}
+      }
+      if(effect.type==="retry") state.retryScenario += effect.amount;
+      if(effect.type==="exchange") pendingExchange = true;
+      if(effect.type==="finish") finishMission();
+      if(effect.type!=="exchange" && effect.type!=="finish"){
+        addLog(`${source}: ${effect.label}.`);
+      }
+    }
+    function applyHealthDamage(points, source="health damage"){
+      for(let i=0;i<points;i++){
+        const target = [...state.crew].sort((a,b)=>b.health-a.health)[0];
+        if(target){
+          target.health = Math.max(0,target.health-1);
+          addLog(`${source}: -1 health applied to ${escapeHtml(target.name)}.`);
+        }
+      }
+    }
+    function findCrewForSkill(skill){
+      return [...state.crew].sort((a,b)=>(b[skill]||0)-(a[skill]||0))[0];
+    }
+    function checkGameOver(){
+      let reason = "";
+      if(state.oxygen<=0) reason="Oxygen reached zero.";
+      if(state.armor<=0) reason="Armour reached zero.";
+      const weak = state.crew.find(c=>c.health<=0);
+      if(weak) reason=`${weak.name}'s health reached zero.`;
+      if(reason){
+        state.gameOver=true;
+        state.win=false;
+        currentResult={win:false,reason,months:state.months,oxygen:state.oxygen,armor:state.armor,money:state.money,studentName:getStudentName(),date:new Date().toLocaleString()};
+        addLog(`Game over: ${reason}`);
+        toast(`Game over: ${reason}`);
+        renderResults();
+      }
+    }
+    function finishMission(){
+      if(state.gameOver) return;
+      let finalMonths=state.months;
+      if(state.abilities.civilEngineer){
+        finalMonths=Math.max(0,finalMonths-1);
+        addLog("Civil Engineer ability activated: final mission time reduced by 1 month.");
+      }
+      state.gameOver=true;
+      state.win=finalMonths<9;
+      currentResult={win:state.win,reason:state.win?"Reached Mars Colony in under 9 months.":"Reached Mars Colony, but not under 9 months.",months:finalMonths,rawMonths:state.months,oxygen:state.oxygen,armor:state.armor,money:state.money,studentName:getStudentName(),date:new Date().toLocaleString()};
+      addLog(`Mission finished at Mars Colony. Final months: ${finalMonths}.`);
+      if(state.win){launchConfetti();toast("Mission complete! You reached Mars Colony in time! 🏁");}
+      else toast("You reached Mars, but missed the under-9-month target.");
+      renderResults();
+    }
+
+    function renderAbilities(){
+      const root=document.getElementById("abilityPanel");
+      if(!root) return;
+      if(!missionStarted){root.innerHTML=`<p class="small">Start the mission to unlock ability controls.</p>`;return;}
+      const rows=[];
+      rows.push(`<div class="ability-action"><span>Strategist re-flips</span><strong>${state.abilities.strategistFlips}</strong></div>`);
+      rows.push(`<div class="ability-action"><span>Mechanic armour reduction</span><strong>${state.abilities.mechanic?'Ready':'Used / unavailable'}</strong></div>`);
+      rows.push(`<div class="ability-action"><span>Medic healing points</span><strong>${state.abilities.medicPoints}</strong>${state.abilities.medicPoints>0?'<button onclick="openMedicModal()">Heal</button>':''}</div>`);
+      rows.push(`<div class="ability-action"><span>Flexible Learner</span><strong>${state.abilities.flexible?'Ready':'Used / unavailable'}</strong>${state.abilities.flexible?'<button onclick="openFlexibleModal()">Reallocate</button>':''}</div>`);
+      rows.push(`<div class="ability-action"><span>Oracle advice</span><strong>${state.abilities.oracle?'Active':'No'}</strong>${state.abilities.oracle?'<button onclick="openOracleModal()">View</button>':''}</div>`);
+      root.innerHTML=rows.join("");
+    }
+
+    function openExchangeModal(){
+      if(state.gameOver) return;
+      const card=document.getElementById("modalCard");
+      card.innerHTML=`<div class="modal-title">🛰️ Space Dock Exchange</div><p class="small">Exchange oxygen and armour at a 1:1 rate. Keep both above zero.</p><div class="grid two"><button onclick="exchangeResource('oxygenToArmor')">Trade 1 Oxygen → 1 Armour</button><button onclick="exchangeResource('armorToOxygen')">Trade 1 Armour → 1 Oxygen</button></div><div class="modal-actions"><button class="secondary" onclick="closeModalOnly()">Done</button></div>`;
+      document.getElementById("modal").classList.add("show");
+    }
+    function exchangeResource(type){
+      if(type==="oxygenToArmor" && state.oxygen>1){state.oxygen--;state.armor++;addLog("Space Dock exchange: 1 oxygen traded for 1 armour.");}
+      else if(type==="armorToOxygen" && state.armor>1){state.armor--;state.oxygen++;addLog("Space Dock exchange: 1 armour traded for 1 oxygen.");}
+      else toast("You must keep oxygen and armour above zero.");
+      renderMission();
+    }
+    function openMedicModal(){
+      const card=document.getElementById("modalCard");
+      card.innerHTML=`<div class="modal-title">🩺 Medic Heal</div><p class="small">Restore up to 2 health points during the mission. Select a crewmate to heal by 1 point.</p><div class="grid">${state.crew.map((c,i)=>`<button onclick="healCrew(${i})">Heal ${escapeHtml(c.name)} · Current Health ${c.health}</button>`).join("")}</div><div class="modal-actions"><button class="secondary" onclick="closeModalOnly()">Close</button></div>`;
+      document.getElementById("modal").classList.add("show");
+    }
+    function healCrew(i){
+      if(state.abilities.medicPoints<=0) return;
+      state.crew[i].health++;
+      state.abilities.medicPoints--;
+      addLog(`Medic restored +1 health to ${escapeHtml(state.crew[i].name)}. Medic points left: ${state.abilities.medicPoints}.`);
+      closeModalOnly();
+      renderMission();
+    }
+    function openFlexibleModal(){
+      const card=document.getElementById("modalCard");
+      card.innerHTML=`<div class="modal-title">🔄 Flexible Learner</div><p class="small">Move 1 skill point from one ability to another once.</p><div class="grid three"><div><label class="field-label">Crewmate</label><select id="flexCrew">${state.crew.map((c,i)=>`<option value="${i}">${escapeHtml(c.name)}</option>`).join("")}</select></div><div><label class="field-label">From Skill</label><select id="flexFrom">${SKILLS.map(s=>`<option value="${s}">${SKILL_LABELS[s]}</option>`).join("")}</select></div><div><label class="field-label">To Skill</label><select id="flexTo">${SKILLS.map(s=>`<option value="${s}">${SKILL_LABELS[s]}</option>`).join("")}</select></div></div><div class="modal-actions"><button class="secondary" onclick="closeModalOnly()">Cancel</button><button onclick="applyFlexible()">Reallocate 1 Point</button></div>`;
+      document.getElementById("modal").classList.add("show");
+    }
+    function applyFlexible(){
+      const i=parseInt(document.getElementById("flexCrew").value,10);
+      const from=document.getElementById("flexFrom").value;
+      const to=document.getElementById("flexTo").value;
+      if(from===to){toast("Choose two different skills.");return;}
+      if(state.crew[i][from]<=0){toast("That skill has no points to move.");return;}
+      state.crew[i][from]--; state.crew[i][to]++;
+      state.abilities.flexible=false;
+      addLog(`Flexible Learner: ${escapeHtml(state.crew[i].name)} moved 1 point from ${SKILL_LABELS[from]} to ${SKILL_LABELS[to]}.`);
+      closeModalOnly();
+      renderMission();
+    }
+    function openOracleModal(){
+      const card=document.getElementById("modalCard");
+      card.innerHTML=`<div class="modal-title">🔮 Oracle Confidential Information</div><p class="small">Secret advice: A strong Communicator makes the Alien Ship route valuable. The Oxygen Comet can refill oxygen, but the Mars Landing stage can damage both crew health and armour. Keep armour high before leaving Space Dock.</p><div class="modal-actions"><button onclick="closeModalOnly()">Got it</button></div>`;
+      document.getElementById("modal").classList.add("show");
+    }
+
+    /* ===== Arrival reports ===== */
+    function snapshot(){
+      return {
+        oxygen:state.oxygen, armor:state.armor, months:state.months,
+        health:state.crew.map(c=>c.health),
+        skills:state.crew.map(c=>Object.fromEntries(SKILLS.map(s=>[s,c[s]])))
+      };
+    }
+    function diffSnapshots(a,b){
+      const chips=[];
+      const add=(label,delta)=>{ if(delta) chips.push({label:`${delta>0?'+':'−'}${Math.abs(delta)} ${label}`, good:delta>0}); };
+      add("Oxygen", b.oxygen-a.oxygen);
+      add("Armour", b.armor-a.armor);
+      b.health.forEach((h,i)=>add(`Health (${state.crew[i].name})`, h-a.health[i]));
+      b.skills.forEach((sk,i)=>SKILLS.forEach(s=>{
+        if(s!=="health") add(`${SKILL_LABELS[s]} (${state.crew[i].name})`, sk[s]-a.skills[i][s]);
+      }));
+      return chips;
+    }
+    const NODE_STORIES = {
+      takeoff:{
+        ok:()=>`The countdown hits zero and your engines roar to life. The rocket shudders violently as it claws its way out of Earth's atmosphere. The crew grit their teeth and the hull groans. You are in space, but the launch took its toll.`
+      },
+      iss:{
+        ok:(c)=>`Your crew took a detour to check out the ISS. ${c.hero} took charge and talked the station crew into sharing their spare supplies. You loaded up on extra oxygen before waving goodbye.`,
+        fail:()=>`Your crew took a detour to check out the ISS and spotted spare supplies floating in the cargo bay. But nobody on board had the leadership to organise a transfer, so you drifted away empty-handed.`
+      },
+      debris:{
+        ok:(c)=>`A field of space debris! ${c.hero} grabbed the targeting controls and blasted the biggest rocks to dust. A few fragments still pinged off the hull, but it could have been far worse.`,
+        fail:()=>`A field of space debris! Without a sharp-shooter on board, the crew could only brace for impact as rocks hammered the hull again and again.`
+      },
+      alien:{
+        ok:(c)=>`A mysterious alien ship glides alongside. ${c.hero} opened a channel and talked your way into a trade. The aliens welded spare plating onto your hull and shared some oxygen.`,
+        fail:()=>`A mysterious alien ship glides alongside, but nobody could make sense of its signals. A warning shot rattled your hull. Before it left, the ship dropped off a small canister of oxygen as a peace offering.`
+      },
+      comet:{
+        ok:(c)=>`You latch onto the Oxygen Comet and drill into its icy shell. Frozen oxygen floods your tanks.${c.geo?' Your geologist spotted a rich vein and extracted even more!':''}`
+      },
+      dock:{
+        ok:(c)=>`You dock at the busy Space Dock. ${c.hero} impressed the dockmaster, who opened the trading floor to your crew. You can swap oxygen and armour one for one.`,
+        fail:()=>`You dock at the busy Space Dock, but nobody on board could talk or lead their way into a deal. The traders turned you away, so there are no swaps today.`
+      },
+      landing:{
+        ok:()=>`The Martian atmosphere screams past as you descend. Heat shields glow red and the landing is rough. The crew is shaken and the hull is battered, but you are down on Mars!`
+      },
+      colony:{
+        ok:()=>`Mars Colony! Domes glitter on the red horizon as your rocket touches down. The crew cheer. You made it!`
+      }
+    };
+    function gameOverStory(reason){
+      const r = String(reason||"");
+      if(/oxygen/i.test(r)) return `The last oxygen pod hisses empty. The cabin falls silent and the crew cannot continue.`;
+      if(/armour/i.test(r)) return `The hull gives way. With no armour left, the rocket cannot survive another hit.`;
+      return `One of your crew is too badly hurt to carry on, and the mission has to be aborted.`;
+    }
+    function storyFor(nodeId, enc){
+      const s = NODE_STORIES[nodeId];
+      if(!s || !enc) return "";
+      const ctx = {hero: enc.hero ? escapeHtml(enc.hero) : "Your top specialist", geo: enc.geo};
+      if(nodeId==="colony" && !state.win) return `Mars Colony at last! You made it, but the clock ran past the deadline. The colony is built, just a little late.`;
+      return enc.pass ? s.ok(ctx) : (s.fail ? s.fail(ctx) : s.ok(ctx));
+    }
+    function buildReport(route, startMonths, before, after, travelChips, isLaunch=false, enRoute=false){
+      const nodeId = route.to;
+      const enc = lastEncounter && lastEncounter.nodeId===nodeId ? lastEncounter : null;
+      const chips = [...travelChips, ...diffSnapshots(before,after)];
+      const extraMonths = after.months - before.months;
+      if(extraMonths>0) chips.push({label:`+${extraMonths} Month Build Time`, good:false});
+      const over = state.gameOver && !state.win && currentResult ? currentResult.reason : null;
+      let story = enRoute ? `Your crew set off towards ${NODES[nodeId].name}, but the journey drained the last of your resources.` : storyFor(nodeId, enc);
+      if(!story && over) story = gameOverStory(over);
+      return {
+        nodeId, title: isLaunch ? "Launch!" : NODES[nodeId].name, icon: isLaunch ? "🚀" : NODES[nodeId].icon,
+        story, chips, hazard:lastHazard, isLaunch, enRoute,
+        elapsed: state.months - startMonths,
+        clock: currentResult ? currentResult.months : state.months,
+        over, won: state.gameOver && state.win
+      };
+    }
+    function showArrivalReport(rep){
+      return new Promise(resolve=>{
+        const card = document.getElementById("modalCard");
+        card.classList.add("tall");
+        const chipHtml = rep.chips.length
+          ? rep.chips.map(c=>`<span class="pill ${c.good?'good':'bad'}">${escapeHtml(c.label)}</span>`).join("")
+          : `<span class="pill">No changes</span>`;
+        const hazardHtml = rep.hazard
+          ? `<div class="report-hazard">⚠️ <strong>Hazard: ${escapeHtml(rep.hazard.name)}</strong><br>The coin landed on <strong>${rep.hazard.side.toUpperCase()}</strong>: ${escapeHtml(rep.hazard.label)}.</div>`
+          : "";
+        const timeHtml = rep.isLaunch ? "" : `<div class="report-time"><span class="pill warn">⏱️ Time elapsed: ${rep.elapsed} month${rep.elapsed===1?'':'s'}</span><span class="pill">Mission clock: ${rep.clock} / 9 months</span></div>`;
+        const overHtml = rep.over ? `<div class="report-over">💥 Mission ended: ${escapeHtml(rep.over)}</div>` : "";
+        const winHtml = rep.won ? `<div class="report-win">🏆 Mission complete! You reached Mars Colony in under 9 months.</div>` : "";
+        const finished = state.gameOver;
+        card.innerHTML = `
+          <div class="report-head"><span class="report-icon">${rep.icon}</span><div><div class="eyebrow">${rep.isLaunch?'Launch report':rep.enRoute?'Journey report':'Arrival report'}</div><div class="modal-title" style="margin:0">${escapeHtml(rep.title)}</div></div></div>
+          <p class="report-story">${rep.story}</p>
+          ${hazardHtml}
+          <div class="report-section-title">What changed</div>
+          <div class="report-chips">${chipHtml}</div>
+          ${timeHtml}${overHtml}${winHtml}
+          <div class="modal-actions"><button id="reportContinueBtn">${finished?'See the Leaderboard 🏆':'Continue 🚀'}</button></div>`;
+        document.getElementById("modal").classList.add("show");
+        document.getElementById("reportContinueBtn").onclick = ()=>{ closeModalOnly(); resolve(); };
+      });
+    }
+
+    /* ===== How to Play manual ===== */
+    const MANUAL_HTML = "<h3>\ud83c\udfaf The Mission</h3>\n<p>You are the commander of a rocket heading to <strong>Mars Colony</strong>. Your goal is to arrive in <strong>under 9 months</strong> while keeping your <strong>oxygen</strong>, <strong>armour</strong> and every crewmate's <strong>health</strong> above zero. If any of these hits zero, the mission is over.</p>\n\n<h3>\ud83d\udd11 Logging in</h3>\n<p>Type your name and the <strong>class code</strong> your teacher gave you, then press <em>Launch</em>. Your scores are saved under your name and appear on your class leaderboard.</p>\n\n<h3>\ud83e\uddf0 Step 1: Build your rocket</h3>\n<ul>\n  <li>You start with <strong>950 Y$</strong> (Yogi Dollars) to spend.</li>\n  <li>Oxygen pods cost <strong>50 Y$</strong> each. Armour plates cost <strong>75 Y$</strong> each.</li>\n  <li>Every month of travel uses up <strong>1 oxygen pod</strong>. Armour soaks up damage from hazards and events.</li>\n  <li>The fields start empty. <strong>You decide</strong> how much oxygen and armour to buy, so plan your route first!</li>\n  <li>Money you do not spend counts in your final score. You cannot spend more than your budget.</li>\n</ul>\n\n<h3>\ud83d\udc69\u200d\ud83d\ude80 Step 2: Build your crew</h3>\n<ul>\n  <li>You have <strong>3 crewmates</strong>. Give each one a name and a special ability.</li>\n  <li>Each crewmate has <strong>10 skill points</strong> to share between 5 skills (11 points if they have the High IQ ability). Type the numbers yourself. The total must match exactly.</li>\n  <li>The 5 skills are <strong>Leadership</strong>, <strong>Marksmanship</strong>, <strong>Communication</strong>, <strong>Pilot Skills</strong> and <strong>Health</strong>.</li>\n  <li>Your rocket needs a <strong>Pilot</strong> (more than 5 Pilot Skills) and a <em>different</em> crewmate as <strong>Copilot</strong> (more than 3 Pilot Skills).</li>\n  <li>Health is how much damage a crewmate can take. Think about who needs it most.</li>\n  <li>The <em>Start Mission</em> button unlocks when the checklist on the page is all green.</li>\n</ul>\n\n<h4>Special abilities</h4>\n<table class=\"manual-table\">\n  <tr><th>Ability</th><th>What it does</th></tr>\n  <tr><td>Athlete</td><td>+2 oxygen at the start of the mission</td></tr>\n  <tr><td>High IQ</td><td>1 extra skill point to hand out</td></tr>\n  <tr><td>Flexible Learner</td><td>Move 1 skill point from one skill to another, once, during the mission</td></tr>\n  <tr><td>Billionaire</td><td>+75 Y$ extra budget when building the rocket</td></tr>\n  <tr><td>Mechanic</td><td>Cuts one big armour hit roughly in half, once</td></tr>\n  <tr><td>Strategist</td><td>Two coin re-flips during the game</td></tr>\n  <tr><td>Civil Engineer</td><td>Reduces the final build time at Mars Colony by 1 month</td></tr>\n  <tr><td>Oracle</td><td>Unlocks secret advice about the mission</td></tr>\n  <tr><td>Medic</td><td>Restores up to 2 health points</td></tr>\n  <tr><td>Geologist</td><td>Extracts extra oxygen at the Oxygen Comet</td></tr>\n</table>\n\n<h3>\ud83d\uddfa\ufe0f Step 3: Mission Control</h3>\n<ol>\n  <li><strong>Find your rocket.</strong> The glowing rocket on the map shows where you are.</li>\n  <li><strong>Choose a route.</strong> Pick from the drop-down or the route buttons. Each route shows the travel time and whether it is a hazard route. White dashed lines are normal routes. Red dashed lines are hazard routes.</li>\n  <li><strong>Fly!</strong> Oxygen drops by the number of travel months automatically.</li>\n  <li><strong>Hazards.</strong> On a hazard route a coin is flipped. Heads and tails can have very different results. A Strategist can re-flip before the result is applied.</li>\n  <li><strong>Events.</strong> Every location has an event. Many of them test your crew's skills. If someone on board is strong enough in the right skill (usually more than 5 points), you get a better result. Work out which skills matter as you play.</li>\n  <li><strong>Arrival report.</strong> After each flight a report pops up telling you what happened, what changed, and how much time passed. Read it. It is full of clues for your next run.</li>\n</ol>\n<p>The <strong>Mission Log</strong> on the right records everything. The <strong>Ability Console</strong> is where you use abilities like Medic healing.</p>\n\n<h3>\ud83c\udfc1 Results and the leaderboard</h3>\n<ul>\n  <li>When your mission ends (you arrive at Mars or something runs out), you go straight to the <strong>Leaderboard</strong>.</li>\n  <li>Your score is saved automatically. You are ranked by: <strong>winning first</strong>, then <strong>points</strong>, then <strong>fewer months</strong>, then <strong>money left</strong>.</li>\n  <li>Your points come from three scores: <strong>Strategy</strong> (route choices and resources), <strong>Planning</strong> (rocket and crew setup) and <strong>Prediction</strong> (reading risks and hazards).</li>\n  <li>Only your <strong>best</strong> attempt shows on the board, so try again and beat your own score!</li>\n  <li>On the Results screen you can print your dashboard or download your certificate.</li>\n</ul>\n\n<h3>\ud83d\udca1 Tips</h3>\n<ul>\n  <li>Plan your route <em>before</em> you buy supplies. Count the months!</li>\n  <li>Look at the whole map. Short routes can be risky and long routes can be safe.</li>\n  <li>Spread your crew's skills wisely. One super-strong crewmate in each important skill can beat three average ones.</li>\n  <li>If your mission fails, read the arrival reports and the log, then change your plan and play again.</li>\n</ul>";
+    function openManual(){
+      const card=document.getElementById("modalCard");
+      card.classList.add("tall");
+      card.innerHTML=`<div class="modal-title">📖 How to Play</div><div class="manual">${MANUAL_HTML}</div><div class="modal-actions"><button onclick="closeModalOnly()">Got it</button></div>`;
+      document.getElementById("modal").classList.add("show");
+    }
+
+    function openNavigationGuide(){
+      const card=document.getElementById("modalCard");
+      card.innerHTML=`<div class="modal-title">🚀 How to Play the Mission Map</div><div class="grid">
+        <div class="card"><strong>Step 1: Check your current location</strong><p class="small">The orange highlighted map node shows where the rocket is now.</p></div>
+        <div class="card"><strong>Step 2: Choose a route</strong><p class="small">Use the route buttons below the map. Each button shows where you will fly, how many months it takes, and whether it is risky.</p></div>
+        <div class="card"><strong>Step 3: Fly and watch the updates</strong><p class="small">When you select a route, the rocket moves automatically. Oxygen reduces by the travel months.</p></div>
+        <div class="card"><strong>Step 4: Complete the event</strong><p class="small">Hazards use automatic coin flips. Location scenarios check crew skills and update oxygen, armour, health, and months.</p></div>
+        <div class="card"><strong>Mission target</strong><p class="small">Reach Mars Colony in under 9 months. Keep oxygen, armour, and crew health above zero.</p></div>
+      </div><div class="modal-actions"><button onclick="closeModalOnly()">Start Playing</button></div>`;
+      document.getElementById("modal").classList.add("show");
+    }
+
+    function openRules(){
+      const card=document.getElementById("modalCard");
+      card.innerHTML=`<div class="modal-title">📘 Quick Rules</div><div class="grid">
+        <div class="card"><strong>Objective:</strong><p class="small">Reach Mars Colony in under 9 months.</p></div>
+        <div class="card"><strong>Supplies:</strong><p class="small">Oxygen costs 50 Y$. Armour costs 75 Y$. Each travel month automatically removes 1 oxygen.</p></div>
+        <div class="card"><strong>Crew:</strong><p class="small">Each crewmate needs 10 skill points. You need a Pilot & Copilot. Skill checks usually require over 5 points.</p></div>
+        <div class="card"><strong>Hazards:</strong><p class="small">Hazards use automatic coin tosses. Strategists can re-flip twice.</p></div>
+      </div><div class="modal-actions"><button onclick="closeModalOnly()">Close</button></div>`;
+      document.getElementById("modal").classList.add("show");
+    }
+    function closeModalOnly(){document.getElementById("modal").classList.remove("show");document.getElementById("modalCard").classList.remove("tall");}
+
+    function buildPerformanceAnalytics(){
+      const result = currentResult || {win:false,months:state.months,oxygen:state.oxygen,armor:state.armor,money:state.money,reason:"Mission not completed yet."};
+      const months = Number(result.months || state.months || 0);
+      const oxygen = Number(result.oxygen ?? state.oxygen ?? 0);
+      const armor = Number(result.armor ?? state.armor ?? 0);
+      const money = Number(result.money ?? state.money ?? 0);
+      const metrics = state.metrics || {routeChoices:0,hazardRoutes:0,safeRoutes:0,coinFlips:0,reflipsUsed:0};
+      const minHealth = state.crew && state.crew.length ? Math.min(...state.crew.map(c=>Number(c.health||0))) : Math.min(...crew.map(c=>Number(c.health||0)));
+      const visitedCount = state.visited ? state.visited.length : 1;
+      const routeEfficiency = months <= 6 ? 25 : months <= 8 ? 20 : months <= 9 ? 14 : 6;
+      const survival = result.win ? 30 : (state.current === "colony" ? 22 : 10);
+      const resourceControl = clamp((oxygen>0?oxygen:0)*3 + (armor>0?armor:0)*3 + (minHealth>0?minHealth*2:0),0,25);
+      const riskBonus = clamp((metrics.hazardRoutes || 0)*4 + (metrics.safeRoutes || 0)*2,0,20);
+      const strategy = clamp(survival + routeEfficiency + resourceControl + riskBonus,0,100);
+
+      const v = validateCrew();
+      const startingBalance = clamp(40 - Math.abs(setup.oxygen - setup.armor)*4, 8, 40);
+      const budgetScore = money >= 150 ? 20 : money >= 75 ? 15 : money >= 0 ? 10 : 0;
+      const crewScore = v.totalsOk && v.pilotIndex>=0 && v.copilotOk ? 25 : 10;
+      const supplyScore = setup.oxygen >= 7 && setup.armor >= 4 ? 15 : setup.oxygen >= 5 && setup.armor >= 3 ? 10 : 5;
+      const planning = clamp(startingBalance + budgetScore + crewScore + supplyScore,0,100);
+
+      const hazardAwareness = metrics.coinFlips ? 45 + Math.max(0, 20 - (metrics.reflipsUsed||0)*3) : 62;
+      const predictionOutcome = result.win ? 25 : (oxygen>0 && armor>0 ? 14 : 6);
+      const riskReading = clamp((metrics.hazardRoutes||0)*5 + (metrics.safeRoutes||0)*3,0,20);
+      const prediction = clamp(hazardAwareness + predictionOutcome + riskReading,0,100);
+
+      const total = Math.round((strategy + planning + prediction) / 3);
+      let medal = {icon:"🥉", name:"Bronze Medal", tone:"Keep exploring"};
+      if(total >= 85 && result.win) medal = {icon:"🥇", name:"Gold Medal", tone:"Mission master"};
+      else if(total >= 70 && (result.win || state.current === "colony")) medal = {icon:"🥈", name:"Silver Medal", tone:"Strong commander"};
+      else if(total >= 55) medal = {icon:"🥉", name:"Bronze Medal", tone:"Growing strategist"};
+      else medal = {icon:"🎖️", name:"Rookie Explorer Badge", tone:"Try another route"};
+
+      const badges=[];
+      if(result.win) badges.push(["🏁","Mars Finisher"]);
+      if(months>0 && months<=7) badges.push(["⚡","Fast Navigator"]);
+      if(months>0 && months<9) badges.push(["⏱️","Under-9-Month Planner"]);
+      if(oxygen>=3 && armor>=3) badges.push(["🛡️","Resource Guardian"]);
+      if(money>=100) badges.push(["💰","Budget Saver"]);
+      if((metrics.hazardRoutes||0)>=2) badges.push(["🔥","Risk Taker"]);
+      if((metrics.safeRoutes||0)>=(metrics.hazardRoutes||0) && result.win) badges.push(["🧭","Careful Navigator"]);
+      if(minHealth>=2) badges.push(["❤️","Crew Protector"]);
+      if((state.visited||[]).includes("comet")) badges.push(["💧","Oxygen Collector"]);
+      if(prediction>=80) badges.push(["🔮","Prediction Star"]);
+      if(!badges.length) badges.push(["🚀","Mission Learner"]);
+
+      const feedback = [];
+      if(strategy>=80) feedback.push("Excellent route strategy: you balanced speed, risk, and resources well.");
+      else if(strategy>=60) feedback.push("Good strategy: your route choices worked, but you can still improve speed or resource safety.");
+      else feedback.push("Strategy focus: try comparing safe routes and risky shortcuts before launching next time.");
+      if(planning>=80) feedback.push("Strong planning: your crew and rocket setup were well prepared for the mission.");
+      else if(planning>=60) feedback.push("Planning was solid, but a better oxygen/armour balance could make the next run safer.");
+      else feedback.push("Planning focus: increase starting supplies and check crew skill roles before launch.");
+      if(prediction>=80) feedback.push("Great prediction and risk reading: you handled hazard uncertainty calmly.");
+      else if(prediction>=60) feedback.push("Prediction was fair: keep watching hazard routes and save special powers for key moments.");
+      else feedback.push("Prediction focus: look at hazard paths carefully and plan backup resources before taking risks.");
+
+      return {strategy:Math.round(strategy), planning:Math.round(planning), prediction:Math.round(prediction), total, medal, badges, feedback, minHealth, metrics};
+    }
+
+    function metricCard(title, score, note, icon){
+      return `<div class="metric-card"><div class="metric-top"><div class="metric-name">${icon} ${title}</div><div class="metric-score">${score}</div></div><div class="metric-bar"><span style="width:${score}%"></span></div><p class="small">${note}</p></div>`;
+    }
+
+    function renderCertificate(analytics){
+      const name = escapeHtml(getStudentName());
+      const result = currentResult;
+      const cert = document.getElementById("certificatePrintArea");
+      if(!cert) return;
+      if(!result){cert.classList.add("hidden");cert.innerHTML="";return;}
+      cert.classList.remove("hidden");
+      cert.innerHTML = `<div class="certificate-preview">
+        <div class="certificate-title">Certificate of Mission Achievement</div>
+        <div class="certificate-name">${name}</div>
+        <p class="certificate-sub">has completed the <strong>Project Mars — Crew Selection Simulation</strong> and earned the <strong>${analytics.medal.name}</strong> for strategy, planning, and prediction.</p>
+        <div class="grid four" style="margin-top:22px">
+          <div class="stat-card"><div class="stat-label">Medal</div><div class="stat-value">${analytics.medal.icon}</div></div>
+          <div class="stat-card"><div class="stat-label">Months</div><div class="stat-value">${result.months}/9</div></div>
+          <div class="stat-card"><div class="stat-label">Score</div><div class="stat-value">${analytics.total}</div></div>
+          <div class="stat-card"><div class="stat-label">Result</div><div class="stat-value">${result.win?'Success':'Completed'}</div></div>
+        </div>
+        <p class="tiny" style="margin-top:18px">🚀 Meu Labs · Knowledge Explorers · Project Mars</p>
+      </div>`;
+    }
+
+    function renderResults(){
+      const root=document.getElementById("resultsContent");
+      const input=document.getElementById("studentNameInput");
+      let savedName = "";
+      try{savedName = localStorage.getItem("marsPlayerName") || "";}catch(e){}
+      if(!state.studentName && savedName) state.studentName = savedName;
+      syncNameInputs(state.studentName);
+      if(!currentResult){
+        root.innerHTML=`<div class="result-icon">🛰️</div><h2>No mission result yet</h2><p class="helper" style="margin:auto">Start a mission and reach Mars Colony, or trigger a game-over condition, to see the result here.</p>`;
+        const cert=document.getElementById("certificatePrintArea");
+        if(cert){cert.classList.add("hidden");cert.innerHTML="";}
+        document.getElementById("saveScoreBtn").disabled=true;
+      } else {
+        currentResult.studentName = getStudentName();
+        const a = buildPerformanceAnalytics();
+        const outcomeText = currentResult.win ? "Mission Success!" : "Mission Ended";
+        const studentName = escapeHtml(getStudentName());
+        root.innerHTML=`<div class="dashboard-shell">
+          <div class="dashboard-hero">
+            <div class="result-icon">${currentResult.win?'🏆':'🛰️'}</div>
+            <div>
+              <div class="eyebrow">Mission Performance Dashboard</div>
+              <h2>${outcomeText}</h2>
+              <p class="helper">${studentName} · ${escapeHtml(currentResult.reason)}</p>
+            </div>
+            <div class="medal-card"><div class="medal-icon">${a.medal.icon}</div><div class="medal-name">${a.medal.name}</div><div class="tiny">${a.medal.tone}</div></div>
+          </div>
+          <div class="grid four" style="margin-top:16px">
+            <div class="stat-card"><div class="stat-label">Months</div><div class="stat-value">${currentResult.months}/9</div></div>
+            <div class="stat-card"><div class="stat-label">Oxygen</div><div class="stat-value">${currentResult.oxygen}</div></div>
+            <div class="stat-card"><div class="stat-label">Armour</div><div class="stat-value">${currentResult.armor}</div></div>
+            <div class="stat-card"><div class="stat-label">Money Left</div><div class="stat-value">${currentResult.money} Y$</div></div>
+          </div>
+          <div class="grid three" style="margin-top:16px">
+            ${metricCard("Strategy", a.strategy, "Measures route choices, mission success, speed, and resource survival.", "🧠")}
+            ${metricCard("Planning", a.planning, "Measures rocket supply balance, budget control, crew role readiness, and setup quality.", "📋")}
+            ${metricCard("Prediction", a.prediction, "Measures hazard awareness, risk reading, coin-flip handling, and backup decisions.", "🔮")}
+          </div>
+          <div class="grid two" style="margin-top:16px">
+            <div class="card"><p class="card-title">🏅 Play Badges</p><div class="badge-board">${a.badges.map(b=>`<span class="play-badge">${b[0]} ${b[1]}</span>`).join("")}</div></div>
+            <div class="card"><p class="card-title">🧾 Mission Details</p><div class="validation-list"><span class="pill">Routes chosen: ${a.metrics.routeChoices||0}</span><span class="pill">Hazard routes: ${a.metrics.hazardRoutes||0}</span><span class="pill">Coin flips: ${a.metrics.coinFlips||0}</span><span class="pill">Crew min health: ${a.minHealth}</span></div></div>
+          </div>
+          <div class="card feedback-box" style="margin-top:16px"><p class="card-title">💡 Feedback</p>${a.feedback.map(f=>`<p class="small">${f}</p>`).join("")}</div>
+          <div class="print-actions"><button onclick="printDashboard()">Print Dashboard 🖨️</button><button class="secondary" onclick="printCertificate()">Print Certificate 🎓</button><button class="secondary" onclick="downloadCertificate()">Download Certificate ⬇️</button></div>
+        </div>`;
+        renderCertificate(a);
+        updateSaveBtn(); if(!currentResult.saved) saveScore(true);
+      }
+      renderScoreboard();
+    }
+    /* ===== Login / session ===== */
+    let session = null;
+    let leaderboardCache = [];
+    let leaderboardState = "idle"; // idle | loading | error | ready
+    try{ session = JSON.parse(localStorage.getItem("marsSession") || "null"); }catch(e){}
+
+    function initAuth(){
+      const note = document.getElementById("loginNote");
+      if(!API_URL) note.textContent = "Practice mode: scores are saved on this device only.";
+      ["loginName","loginCode"].forEach(id=>{
+        document.getElementById(id).addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+      });
+      if(session && session.name) applySession();
+      else showLogin();
+    }
+    function showLogin(){
+      document.getElementById("loginOverlay").classList.remove("hidden");
+      document.getElementById("loginName").focus();
+    }
+    async function doLogin(){
+      const err = document.getElementById("loginError");
+      const btn = document.getElementById("loginBtn");
+      const name = document.getElementById("loginName").value.trim().replace(/\s+/g," ");
+      const code = document.getElementById("loginCode").value.trim().toUpperCase();
+      err.textContent = "";
+      if(!name){ err.textContent = "Please enter your name."; return; }
+      if(API_URL && !code){ err.textContent = "Please enter your class code."; return; }
+      if(!API_URL){
+        session = {name, code: code || "PRACTICE", className: code ? code : "Practice"};
+      } else {
+        btn.disabled = true; btn.textContent = "Checking...";
+        try{
+          const res = await fetch(`${API_URL}?action=login&name=${encodeURIComponent(name)}&code=${encodeURIComponent(code)}`);
+          const data = await res.json();
+          if(!data.ok){ err.textContent = data.error || "Login failed."; return; }
+          session = {name: data.name, code: data.code, className: data.className};
+        }catch(e){
+          err.textContent = "Could not reach the server. Check your internet and try again.";
+          return;
+        }finally{
+          btn.disabled = false; btn.textContent = "Launch 🚀";
+        }
+      }
+      try{ localStorage.setItem("marsSession", JSON.stringify(session)); }catch(e){}
+      applySession();
+    }
+    function applySession(){
+      document.getElementById("loginOverlay").classList.add("hidden");
+      document.getElementById("sessionName").textContent = session.name;
+      document.getElementById("sessionClass").textContent = "Class: " + session.className;
+      document.getElementById("resultsPlayerName").textContent = session.name;
+      document.getElementById("lbTitle").textContent = "🏆 " + session.className + " Leaderboard";
+      updateStudentName(session.name);
+      loadLeaderboard();
+    }
+    function logout(){
+      if(missionStarted && !state.gameOver && !confirm("You have a mission in progress. Log out anyway?")) return;
+      session = null;
+      try{ localStorage.removeItem("marsSession"); }catch(e){}
+      document.getElementById("loginName").value = "";
+      document.getElementById("loginCode").value = "";
+      document.getElementById("loginError").textContent = "";
+      leaderboardCache = []; leaderboardState = "idle";
+      updateStudentName("");
+      missionStarted=false; state=defaultMissionState(); currentResult=null; busy=false;
+      renderSetup(); renderCrew(); renderMission(); renderResults(); goStep(1);
+      showLogin();
+    }
+
+    /* ===== Saving scores + leaderboard ===== */
+    function localScores(){
+      try{ return JSON.parse(localStorage.getItem("marsLocalScores") || "[]"); }catch(e){ return []; }
+    }
+    function rankBetter(a,b){
+      return (b.win-a.win) || ((b.total||0)-(a.total||0)) || (a.months-b.months) || (b.money-a.money);
+    }
+    function updateSaveBtn(){
+      const btn = document.getElementById("saveScoreBtn");
+      if(!btn) return;
+      if(!currentResult){ btn.disabled = true; btn.textContent = "Save Result"; return; }
+      if(currentResult.saving){ btn.disabled = true; btn.textContent = "Saving..."; }
+      else if(currentResult.saved){ btn.disabled = true; btn.textContent = "Saved ✓"; }
+      else { btn.disabled = false; btn.textContent = "Save Result"; }
+    }
+    let savePromise = null;
+    async function saveScore(auto){
+      const result = currentResult;
+      if(!result || result.saved || result.saving || !session) return;
+      const a = buildPerformanceAnalytics();
+      const record = {
+        name: session.name, code: session.code, win: !!result.win,
+        months: result.months, oxygen: result.oxygen, armor: result.armor, money: result.money,
+        total: a.total, medal: a.medal.name, strategy: a.strategy, planning: a.planning, prediction: a.prediction
+      };
+      if(!API_URL){
+        const list = localScores();
+        list.push({...record, date: new Date().toLocaleDateString()});
+        list.sort(rankBetter);
+        try{ localStorage.setItem("marsLocalScores", JSON.stringify(list.slice(0,50))); }catch(e){}
+        result.saved = true;
+        toast("Saved on this device (practice mode).");
+        updateSaveBtn(); loadLeaderboard();
+        return;
+      }
+      result.saving = true; updateSaveBtn();
+      savePromise = (async()=>{
+        try{
+          const res = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({action:"save", ...record})
+          });
+          const data = await res.json();
+          if(!data.ok) throw new Error(data.error || "Save failed");
+          result.saved = true;
+          toast("Score saved to the class leaderboard! 🏆");
+        }catch(e){
+          toast("Could not save online. Check your internet, then press Save Result to try again.");
+        }
+        result.saving = false;
+      })();
+      await savePromise;
+      savePromise = null;
+      updateSaveBtn();
+      loadLeaderboard();
+    }
+    async function loadLeaderboard(){
+      if(!session) return;
+      if(savePromise) await savePromise;
+      if(!API_URL){
+        leaderboardCache = localScores().filter(s=>s.code===session.code);
+        leaderboardState = "ready";
+        renderScoreboard();
+        return;
+      }
+      leaderboardState = "loading"; renderScoreboard();
+      try{
+        const res = await fetch(`${API_URL}?action=leaderboard&code=${encodeURIComponent(session.code)}`);
+        const data = await res.json();
+        if(!data.ok) throw new Error(data.error);
+        leaderboardCache = data.rows || [];
+        leaderboardState = "ready";
+      }catch(e){
+        leaderboardState = "error";
+      }
+      renderScoreboard();
+    }
+    function renderYourResult(){
+      const root = document.getElementById("yourResult");
+      if(!root) return;
+      if(!currentResult){
+        root.innerHTML = `<p class="small" style="margin:0">No mission played yet. Finish a mission and your result will show up here and on the board.</p>`;
+        return;
+      }
+      const a = buildPerformanceAnalytics();
+      root.innerHTML = `<span style="font-size:42px">${a.medal.icon}</span>
+        <div><strong style="font-size:1.2rem">${escapeHtml(a.medal.name)}</strong><div class="small">${currentResult.win?'Mission success':'Mission ended'} · ${escapeHtml(currentResult.reason)}</div></div>
+        <span class="pill">${a.total} pts</span><span class="pill">${currentResult.months} months</span><span class="pill">${currentResult.money} Y$ left</span>`;
+    }
+    function renderScoreboard(){
+      const root = document.getElementById("scoreboard");
+      if(!root) return;
+      if(leaderboardState === "loading"){ root.innerHTML = `<p class="small">Loading leaderboard…</p>`; return; }
+      if(leaderboardState === "error"){ root.innerHTML = `<p class="small">Couldn't load the leaderboard. Press Refresh to try again.</p>`; return; }
+      if(!leaderboardCache.length){ root.innerHTML = `<p class="small">No results yet. Finish a mission to be the first on the board!</p>`; return; }
+      const icons = ["🥇","🥈","🥉"];
+      const me = session ? session.name.toLowerCase() : "";
+      root.innerHTML = leaderboardCache.map((s,i)=>`<div class="score-row lb${String(s.name).toLowerCase()===me?' me':''}"><span class="rank">${icons[i] || '#'+(i+1)}</span><strong>${escapeHtml(s.name)}</strong><span class="pill ${s.win?'good':'bad'}">${escapeHtml(s.medal || (s.win?'Mission Medal':'Explorer Badge'))}</span><span>${s.months} months</span><span>${s.total || '-'} pts</span></div>`).join("");
+    }
+    function setA4PrintMode(mode){
+      const old=document.getElementById("a4PrintModeStyle");
+      if(old) old.remove();
+      const style=document.createElement("style");
+      style.id="a4PrintModeStyle";
+      style.textContent = mode === "certificate"
+        ? "@media print{@page{size:A4 landscape;margin:8mm}}"
+        : "@media print{@page{size:A4 portrait;margin:8mm}}";
+      document.head.appendChild(style);
+    }
+    function clearA4PrintMode(){
+      const old=document.getElementById("a4PrintModeStyle");
+      if(old) old.remove();
+    }
+    function safeFileName(name){
+      return String(name || "Mars Explorer").trim().replace(/[^a-z0-9]+/gi,"_").replace(/^_+|_+$/g,"") || "Mars_Explorer";
+    }
+    function prepareCertificate(){
+      if(!currentResult){toast("Finish the mission first to print or download the certificate.");return false;}
+      currentResult.studentName = getStudentName();
+      renderCertificate(buildPerformanceAnalytics());
+      return true;
+    }
+    function certificateDocumentHTML(){
+      const cert=document.getElementById("certificatePrintArea");
+      const content = cert ? cert.innerHTML : "";
+      return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Project Mars Certificate</title><style>
+        @page{size:A4 landscape;margin:8mm}
+        *{box-sizing:border-box}
+        html,body{margin:0;padding:0;width:100%;min-height:100%;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#061333;color:#111633;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        body{display:grid;place-items:center;padding:0}
+        .certificate-preview{width:281mm;height:194mm;display:grid;align-content:center;text-align:center;position:relative;overflow:hidden;border:2.6mm solid #ffcf5f;outline:1.2mm solid rgba(255,255,255,.78);border-radius:15mm;padding:15mm;background:radial-gradient(circle at 50% 8%,rgba(255,255,255,.94),rgba(255,255,255,.9) 22%,rgba(255,247,221,.96) 58%,rgba(235,244,255,.97));box-shadow:0 10mm 26mm rgba(0,0,0,.28);page-break-inside:avoid}
+        .certificate-preview:before{content:"★";position:absolute;left:12mm;top:7mm;font-size:42pt;color:rgba(255,159,28,.28)}
+        .certificate-preview:after{content:"🚀";position:absolute;right:12mm;bottom:8mm;font-size:44pt;opacity:.18}
+        .certificate-title{font-size:13pt;text-transform:uppercase;letter-spacing:.16em;color:#ff7b00;font-weight:1000}
+        .certificate-name{font-size:45pt;line-height:1;color:#111633;margin:5mm 0;font-weight:1000;letter-spacing:-.06em;text-shadow:0 1mm 0 #fff2c9}
+        .certificate-sub{font-size:13.2pt;line-height:1.45;color:#283653;max-width:228mm;margin:0 auto}
+        .grid.four{display:grid;grid-template-columns:repeat(4,1fr);gap:5mm;margin-top:8mm}
+        .stat-card{background:linear-gradient(135deg,#ffffff,#fff3cc);color:#111633;border:1.2px solid rgba(255,159,28,.38);box-shadow:0 3mm 8mm rgba(0,0,0,.10);border-radius:6mm;padding:4.5mm}
+        .stat-label{font-size:8pt;color:#636d85;font-weight:1000;text-transform:uppercase;letter-spacing:.08em}
+        .stat-value{font-size:18pt;color:#111633;font-weight:1000;margin-top:1mm}
+        .tiny{color:#5b6681;font-size:8.5pt;margin-top:18px}
+        @media print{html,body{background:#fff}body{padding:0}.certificate-preview{box-shadow:none}}
+      </style></head><body>${content}</body></html>`;
+    }
+    function printDashboard(){
+      if(!currentResult){toast("Finish the mission first to print the dashboard.");return;}
+      currentResult.studentName = getStudentName();
+      setA4PrintMode("dashboard");
+      document.body.classList.add("print-dashboard");
+      const cleanup=()=>{document.body.classList.remove("print-dashboard");clearA4PrintMode();window.removeEventListener("afterprint",cleanup);};
+      window.addEventListener("afterprint",cleanup);
+      setTimeout(()=>{window.print();setTimeout(cleanup,1200);},80);
+    }
+    function printCertificate(){
+      if(!prepareCertificate()) return;
+      const html = certificateDocumentHTML();
+      const printWindow = window.open("", "_blank", "width=1200,height=850");
+      if(printWindow){
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(()=>printWindow.print(),350);
+      }else{
+        setA4PrintMode("certificate");
+        document.body.classList.add("print-certificate");
+        const cleanup=()=>{document.body.classList.remove("print-certificate");clearA4PrintMode();window.removeEventListener("afterprint",cleanup);};
+        window.addEventListener("afterprint",cleanup);
+        setTimeout(()=>{window.print();setTimeout(cleanup,1200);},80);
+      }
+    }
+    function downloadCertificate(){
+      if(!prepareCertificate()) return;
+      const html = certificateDocumentHTML();
+      const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${safeFileName(getStudentName())}_Project_Mars_Certificate.html`;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(()=>{URL.revokeObjectURL(link.href);link.remove();},500);
+      toast("Certificate downloaded. Open it and choose Print → Save as PDF if needed.");
+    }
+
+    function newRunSameSetup(){
+      const playerName = getStudentName();
+      missionStarted=false;
+      state=defaultMissionState();
+      state.studentName = playerName;
+      currentResult=null;
+      goStep(2);
+      toast("Ready for a new run with the same setup.");
+    }
+    function resetEverything(){
+      if(!confirm("Reset the full game?")) return;
+      setup={oxygen:0,armor:0};
+      crew=[1,2,3].map(n=>defaultCrew(n));
+      const playerName = getStudentName();
+      missionStarted=false;
+      state=defaultMissionState();
+      state.studentName = playerName;
+      currentResult=null;
+      busy=false;
+      renderSetup();renderCrew();renderMission();renderResults();goStep(1);
+      toast("Game reset.");
+    }
+
+    function toast(msg){
+      const root=document.getElementById("toast");
+      const el=document.createElement("div");
+      el.className="toast-msg";
+      el.textContent=msg;
+      root.appendChild(el);
+      setTimeout(()=>{el.style.opacity="0";el.style.transform="translateY(10px)";},2600);
+      setTimeout(()=>el.remove(),3100);
+    }
+    function launchConfetti(){
+      const root=document.getElementById("confetti");
+      root.innerHTML="";
+      const colors=["#ff9f1c","#55d88a","#66c7ff","#ff4242","#9b7bff","#fff2b3"];
+      for(let i=0;i<90;i++){
+        const s=document.createElement("span");
+        s.style.left=`${Math.random()*100}%`;
+        s.style.background=colors[Math.floor(Math.random()*colors.length)];
+        s.style.animationDelay=`${Math.random()*1.2}s`;
+        s.style.animationDuration=`${2.6+Math.random()*2.8}s`;
+        root.appendChild(s);
+      }
+      setTimeout(()=>root.innerHTML="",5500);
+    }
+    function wait(ms){return new Promise(r=>setTimeout(r,ms));}
+    function escapeHtml(value){
+      return String(value).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+    }
+
+    document.getElementById("modal").addEventListener("click", e=>{
+      if(e.target.id==="modal" && !busy) closeModalOnly();
+      else if(e.target.id==="modal" && busy) toast("Apply the coin result first to continue the mission.");
+    });
+    window.addEventListener("resize", positionRocket);
+
+    renderSetup();
+    renderCrew();
+    renderResults();
+    syncNameInputs(getStudentName()==="Mars Explorer" ? "" : getStudentName());
+    initAuth();
+    setTimeout(positionRocket,100);
+  </script>
+</body>
+</html>
